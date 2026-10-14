@@ -12,11 +12,17 @@
   const STORAGE = 'buraimi_roads_osm_locations_v2';
   const OLD_STORAGE = 'buraimi_roads_touch_points_v1';
   const THEME = 'buraimi_roads_touch_theme_v1';
-  const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+  const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron'; // lean vector style; same OSM road source
   const DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+  // Governorate boundary vector dataset (derived from GADM 3.6; remote read-only source).
+  // The map stays invisible if this data cannot be loaded. It must never show neighbouring UAE tiles.
+  const BOUNDARY_URL = 'https://raw.githubusercontent.com/NasserAlbusaidi/oman-data-bank/main/public/oman-governorates.json';
+  const BOUNDARY_CACHE = 'buraimi-boundary-v2.2';
+  const MASK_ID = 'buraimi-outside-hidden';
+  const OUTLINE_ID = 'buraimi-governorate-border';
   const ROAD_LAYER = 'buraimi-osm-roads-emphasis';
   const BUILDINGS_ID = 'buraimi-3d-buildings';
-  const BOUNDS = [[55.58,23.45],[56.28,25.05]];
+  let BOUNDS = [[55.58,23.45],[56.28,25.05]]; // replaced by true polygon bounds before display
   const CENTER = [55.88,24.25];
   const ROAD_TYPES = {
     all: ['motorway','trunk','primary','secondary','tertiary','minor','street','street_limited','service','track','path'],
@@ -42,11 +48,139 @@
   document.body.classList.toggle('admin-mode',adminAvailable);
   const state = {
     points: loadPoints(), selectedId:'buraimi', road:null, filter:'all', term:'', roadFilter:'all',
-    showWilaya:true,showSite:true,showRoads:true,showBuildings:true,showTerrain:true,
-    is3D:true, editMode:false,editingId:null, pendingCoords:null, markers:[], map:null,
-    mapReady:false, sourceId:null, buildingLayerIds:[], tourTimer:null, toastTimer:null, errorCount:0
+    showWilaya:true,showSite:true,showRoads:true,showBuildings:true,showTerrain:false,terrainUserSet:false,
+    is3D:false, editMode:false,editingId:null, pendingCoords:null, markers:[], map:null,
+    mapReady:false, styleReady:false, firstPaint:false, sourceId:null, buildingLayerIds:[], tourTimer:null, toastTimer:null, errorCount:0, boundaryGeo:null, boundaryReady:false, boundaryLoading:false
   };
   if(!state.points.some(p=>p.id==='buraimi'))state.selectedId=state.points[0]?.id||null;
+  // The boundaries come from the governorate polygon, NOT from a loose rectangular bbox.
+  function ringContains(lng,lat,ring){
+    let inside=false;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const a=ring[i], b=ring[j];
+      if(((a[1]>lat)!==(b[1]>lat))&&(lng<(b[0]-a[0])*(lat-a[1])/(b[1]-a[1])+a[0]))inside=!inside;
+    }
+    return inside;
+  }
+  function pointInGeometry(lng,lat,geometry){
+    if(!geometry)return false;
+    const polygons=geometry.type==='Polygon'?[geometry.coordinates]:(geometry.type==='MultiPolygon'?geometry.coordinates:[]);
+    return polygons.some(rings=>rings.length&&ringContains(lng,lat,rings[0])&&!rings.slice(1).some(r=>ringContains(lng,lat,r)));
+  }
+  function boundaryPolygons(geo){return geo.type==='Polygon'?[geo.coordinates]:(geo.type==='MultiPolygon'?geo.coordinates:[]);}
+  function nameMatchesBuraymi(feature){
+    const props=feature?.properties||{};
+    return Object.values(props).some(v=>typeof v==='string'&&/البريمي|البريمى|(?:al[\s_-]*)?(?:buraymi|buraimi|bur[a-z]*ymi)/i.test(v));
+  }
+  function extractGovernorate(data){
+    const features=data?.type==='FeatureCollection'?data.features:(data?.type==='Feature'?[data]:[]);
+    const valid=features.filter(f=>f?.geometry&&boundaryPolygons(f.geometry).length);
+    let selected=valid.find(nameMatchesBuraymi);
+    // Backup for datasets with numeric governorate IDs and no readable names:
+    // the correct governorate must encompass all three known Omani wilayat centres.
+    if(!selected)selected=valid.find(f=>[[55.80253,24.25579],[55.9666,24.4095],[55.95399,23.60676]]
+      .every(([lng,lat])=>pointInGeometry(lng,lat,f.geometry)));
+    if(!selected)throw Error('لم يتم تحديد مضلع محافظة البريمي داخل ملف الحدود.');
+    const poly=boundaryPolygons(selected.geometry);
+    let n=0,west=Infinity,south=Infinity,east=-Infinity,north=-Infinity;
+    for(const polygon of poly)for(const ring of polygon){
+      if(!Array.isArray(ring)||ring.length<4)throw Error('مضلع غير صالح');
+      for(const p of ring){const [lng,lat]=p;
+        if(!Number.isFinite(lng)||!Number.isFinite(lat))throw Error('إحداثيات غير صالحة');
+        west=Math.min(west,lng);south=Math.min(south,lat);east=Math.max(east,lng);north=Math.max(north,lat);n++;
+      }
+    }
+    if(n<5||west<54||east>58||south<22||north>27||east-west<.12||north-south<.12)throw Error('المضلع المحدد لا يمثل محافظة البريمي');
+    return {type:'Feature',properties:{name:'محافظة البريمي'},geometry:selected.geometry,bbox:[west,south,east,north]};
+  }
+  function geometryRing(ring,clockwise){
+    const pts=ring.map(p=>[Number(p[0]),Number(p[1])]);
+    if(pts.length&& (pts[0][0]!==pts.at(-1)[0]||pts[0][1]!==pts.at(-1)[1]))pts.push([...pts[0]]);
+    let doubleArea=0;
+    for(let i=0;i<pts.length-1;i++)doubleArea+=(pts[i][0]*pts[i+1][1]-pts[i+1][0]*pts[i][1]);
+    // GeoJSON RFC 7946: outer CCW and hole CW.
+    if((doubleArea<0)!==clockwise)pts.reverse();
+    return pts;
+  }
+  function geometryOutsideMask(geometry){
+    const polygons=boundaryPolygons(geometry);
+    const [west,south,east,north]=state.boundaryGeo.bbox;
+    const globalRing=geometryRing([[west-1,south-1],[east+1,south-1],[east+1,north+1],[west-1,north+1]],false);
+    const holes=polygons.map(poly=>geometryRing(poly[0],true));
+    const features=[{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[globalRing,...holes]}}];
+    // Any interior holes within the governorate boundaries should remain masked.
+    for(const poly of polygons)for(const inner of poly.slice(1))features.push({type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[geometryRing(inner,false)]}});
+    return {type:'FeatureCollection',features};
+  }
+  function applyArabicMapLabels(){
+    // MapLibre >=6.9 handles Arabic shaping and RTL natively, without an extra network plugin.
+    // Field names vary among vector tile providers; Arabic is preferred where available.
+    for(const layer of state.map.getStyle().layers||[]){
+      if(layer.type!=='symbol'||layer.layout?.['text-field']===undefined)continue;
+      try{
+        state.map.setLayoutProperty(layer.id,'text-field',[
+          'coalesce',
+          ['get','name:ar'],['get','name_ar'],['get','name'],['get','name_en'],''
+        ]);
+        // OpenFreeMap serves glyphs for the Noto Sans stack used in its vector styles.
+        state.map.setLayoutProperty(layer.id,'text-font',['Noto Sans Regular']);
+      }catch(error){console.warn('Arabic label layout:',layer.id,error);}
+    }
+  }
+  function drawGovernorateOnly(){
+    if(!state.styleReady||!state.boundaryGeo||state.boundaryReady)return;
+    const map=state.map;
+    try{
+      applyArabicMapLabels();
+      map.addSource('buraimi-boundary',{type:'geojson',data:state.boundaryGeo});
+      map.addSource('buraimi-hide-outside',{type:'geojson',data:geometryOutsideMask(state.boundaryGeo.geometry)});
+      map.addLayer({id:MASK_ID,type:'fill',source:'buraimi-hide-outside',
+        paint:{'fill-color':'#dbe7de','fill-opacity':1}});
+      map.addLayer({id:OUTLINE_ID,type:'line',source:'buraimi-boundary',
+        paint:{'line-color':'#1d7563','line-width':['interpolate',['linear'],['zoom'],7,2,12,3.5], 'line-opacity':.98}});
+      const [west,south,east,north]=state.boundaryGeo.bbox;
+      BOUNDS=[[west,south],[east,north]];
+      // Panning remains near the governorate; the mask removes all neighbouring locations.
+      map.setMaxBounds([[west-.22,south-.22],[east+.22,north+.22]]);
+      const pad=innerWidth<820?{top:180,bottom:200,left:22,right:22}:{top:160,bottom:145,left:Math.min(300,innerWidth*.20),right:Math.min(300,innerWidth*.20)};
+      map.fitBounds(BOUNDS,{padding:pad,duration:0,pitch:0,bearing:0});
+      state.boundaryReady=true;
+      $('mapLoading').classList.remove('failed');
+      $('osmMap').classList.add('boundary-ready');
+      $('mapLoading').hidden=true;
+      $('mapStatusText').textContent='محافظة البريمي فقط · عرض عربي';
+      $('mapStatus').classList.remove('error');
+      renderMarkers();readouts();
+    }catch(err){console.error('Governorate mask:',err);setMapError('تعذر قصّ الخريطة بحدود المحافظة. لن تُعرض خرائط المناطق المجاورة حفاظًا على دقة العرض.');}
+  }
+  async function loadGovernorateBoundary(){
+    if(state.boundaryLoading)return;
+    state.boundaryLoading=true;
+    setLoadingProgress('تحميل مضلع حدود محافظة البريمي…');
+    let data=null;
+    try{const cached=localStorage.getItem(BOUNDARY_CACHE);if(cached)data=JSON.parse(cached);}catch(_){/* optional cache */}
+    if(!data){
+      try{
+        const response=await fetch(BOUNDARY_URL,{mode:'cors',cache:'force-cache'});
+        if(!response.ok)throw Error('HTTP '+response.status);
+        const collection=await response.json();
+        data=extractGovernorate(collection);
+        try{localStorage.setItem(BOUNDARY_CACHE,JSON.stringify(data));}catch(_){/* optional cache */}
+      }catch(error){
+        console.error('Governorate data:',error);
+        setMapError('تعذر تحميل حدود محافظة البريمي. يلزم الاتصال بمصدر الحدود أو توفير ملف GeoJSON محلي؛ لن تظهر خريطة الإمارات بدلًا منها.');
+        return;
+      }
+    }
+    try{
+      state.boundaryGeo=extractGovernorate(data);
+      drawGovernorateOnly();
+    }catch(error){
+      console.error('Governorate data parse:',error);
+      setMapError('تعذر قراءة مضلع حدود المحافظة. يرجى إعادة المحاولة.');
+    }
+  }
+
   function ar(value){return String(value).replace(/\d/g,ch=>'٠١٢٣٤٥٦٧٨٩'[Number(ch)]);}
   function element(tag, cls, text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
   function coord(value,min,max){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:null;}
@@ -88,8 +222,8 @@
     }
   }
   function renderMarkers(){
-    state.markers.forEach(m=>m.remove());state.markers=[];if(!state.mapReady)return;
-    state.points.filter(p=>visible(p)&&available(p)).forEach(p=>{
+    state.markers.forEach(m=>m.remove());state.markers=[];if(!state.mapReady||!state.boundaryReady)return;
+    state.points.filter(p=>visible(p)&&available(p)&&pointInGeometry(p.lng,p.lat,state.boundaryGeo?.geometry)).forEach(p=>{
       const btn=element('button','geo-marker'+(p.id===state.selectedId&&!state.road?' selected':''));btn.type='button';btn.textContent=p.kind==='wilaya'?'⌖':'◆';btn.title=p.title;btn.setAttribute('aria-label',p.title);btn.dataset.kind=p.kind;
       btn.addEventListener('click',evt=>{evt.stopPropagation();selectPoint(p.id,false);openDrawer('detail');});
       const marker=new maplibregl.Marker({element:btn,anchor:'bottom'}).setLngLat([p.lng,p.lat]).addTo(state.map);state.markers.push(marker);
@@ -116,20 +250,21 @@
     if(!available(state.points.find(p=>p.id===id)))toast('لا تتوفر إحداثيات لهذا الموقع. يمكن إضافتها في وضع الإدارة.');
   }
   function focusSelected(){
-    if(!state.mapReady)return;
+    if(!state.mapReady||!state.boundaryReady)return;
     if(state.road){state.map.flyTo({center:[state.road.lng,state.road.lat],zoom:Math.max(13,state.map.getZoom()),pitch:state.is3D?61:0,essential:true,duration:1500});return;}
     const p=state.points.find(i=>i.id===state.selectedId);if(!available(p))return;
+    if(!pointInGeometry(p.lng,p.lat,state.boundaryGeo?.geometry)){toast('هذا الموقع يقع خارج حدود المحافظة بحسب بيانات الحدود المتاحة.');return;}
     state.map.flyTo({center:[p.lng,p.lat],zoom:12.4,pitch:state.is3D?62:0,bearing:state.is3D?-20:0,duration:1800,essential:true});
   }
   function toggleTour(){
     if(state.tourTimer){stopTour();return;}
-    if(!state.mapReady){toast('انتظر اكتمال تحميل الخريطة.');return;}
+    if(!state.mapReady||!state.boundaryReady){toast('انتظر تحميل حدود محافظة البريمي.');return;}
     const entries=listFiltered().filter(available);if(!entries.length){toast('لا توجد مواقع محددة الإحداثيات لبدء الجولة.');return;}
     let i=0;const next=()=>{const p=entries[i++%entries.length];selectPoint(p.id,true);};next();state.tourTimer=setInterval(next,8500);
     $('tourIcon').textContent='■';$('tourText').textContent='إيقاف الجولة';$('tourButton').setAttribute('aria-pressed','true');closeDrawer('browse');
   }
   function stopTour(){clearInterval(state.tourTimer);state.tourTimer=null;$('tourIcon').textContent='▶';$('tourText').textContent='بدء جولة تفاعلية';$('tourButton').setAttribute('aria-pressed','false');}
-  function resetMap(){if(!state.mapReady)return;stopTour();state.map.fitBounds(BOUNDS,{padding:Math.max(45,Math.min(innerWidth*.07,110)),pitch:state.is3D?45:0,bearing:state.is3D?-12:0,duration:1500,essential:true});}
+  function resetMap(){if(!state.mapReady||!state.boundaryReady)return;stopTour();state.map.fitBounds(BOUNDS,{padding:Math.max(45,Math.min(innerWidth*.07,110)),pitch:state.is3D?45:0,bearing:state.is3D?-12:0,duration:1500,essential:true});}
   function readouts(){if(!state.mapReady)return;$('pitchReadout').textContent=ar(`${Math.round(state.map.getPitch())}°`);$('zoomReadout').textContent=ar(state.map.getZoom().toFixed(1));}
   function roadFilterExpression(){return ['in',['get','class'],['literal',ROAD_TYPES[state.roadFilter]]];}
   function updateRoadLayer(){
@@ -179,20 +314,22 @@
     if(!state.mapReady)return;
     try{
       if(state.is3D&&state.showTerrain){
-        if(!state.map.getSource('buraimi-terrain'))state.map.addSource('buraimi-terrain',{type:'raster-dem',tiles:[DEM_URL],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Elevation: AWS/Mapzen'});
-        state.map.setTerrain({source:'buraimi-terrain',exaggeration:1.35});
+        if(!state.map.getSource('buraimi-terrain'))state.map.addSource('buraimi-terrain',{type:'raster-dem',tiles:[DEM_URL],tileSize:256,maxzoom:12,encoding:'terrarium',attribution:'Elevation: AWS/Mapzen'});
+        state.map.setTerrain({source:'buraimi-terrain',exaggeration:1.15});
       }else{state.map.setTerrain(null);}
     }catch(err){console.warn('Terrain unavailable:',err);toast('تعذر تفعيل التضاريس. ما زالت الخريطة والطرق متاحة.');}
   }
   function updateMode(){
     if(!state.mapReady)return;
+    if(state.is3D){try{ensureBuildings();}catch(err){console.warn('Buildings unavailable:',err);}}
     enableTerrain();updateBuildings();
-    state.map.easeTo({pitch:state.is3D?62:0,bearing:state.is3D?-20:0,duration:900,essential:true});
+    state.map.easeTo({pitch:state.is3D?54:0,bearing:state.is3D?-15:0,duration:800,essential:true});
     $('viewModeButton').classList.toggle('mode-2d',!state.is3D);
-    $('viewModeButton').textContent=state.is3D?'◩ عرض ثلاثي الأبعاد':'▤ عرض ثنائي الأبعاد';
+    $('viewModeButton').textContent=state.is3D?'▤ العودة إلى 2D':'◩ عرض ثلاثي الأبعاد';
     $('viewModeButton').setAttribute('aria-pressed',String(state.is3D));
   }
   function onMapClick(e){
+    if(!state.boundaryReady||!pointInGeometry(e.lngLat.lng,e.lngLat.lat,state.boundaryGeo?.geometry))return;
     if(state.editMode){openEditor(null,e.lngLat.lat,e.lngLat.lng);return;}
     if(!state.showRoads||!state.map.getLayer(ROAD_LAYER))return;
     const hits=state.map.queryRenderedFeatures(e.point,{layers:[ROAD_LAYER]});
@@ -204,33 +341,68 @@
   function mapError(e){
     const message=String(e?.error?.message||'');
     if(/elevation-tiles|terrarium/.test(message)){if(state.showTerrain){state.showTerrain=false;$('terrainToggle').checked=false;try{if(state.mapReady)state.map.setTerrain(null);}catch(_){};toast('تعذر تحميل ارتفاعات التضاريس؛ يستمر عرض الطرق والخريطة دون تضاريس.');}return;}
-    if(!state.mapReady && /failed|fetch|network|style|404|cors/i.test(message)){
+    if(!state.styleReady && /failed|fetch|network|style|404|cors/i.test(message)){
       setMapError('تعذر الاتصال بمصدر الخرائط. تحقق من الإنترنت أو سماح الشبكة باتصالات OpenFreeMap وMapLibre.');
-    }else if(state.mapReady&&state.errorCount++<1){$('mapStatusText').textContent='بعض المربعات لم تُحمّل';}
+    }else if(state.styleReady&&state.errorCount++<1){$('mapStatusText').textContent='بعض بيانات الخريطة لم تُحمّل — يمكنك الاستكشاف';}
   }
   function setMapError(message){$('mapLoading').hidden=false;$('mapLoading').classList.add('failed');$('loadingTitle').textContent='تعذر تحميل خريطة OpenStreetMap';$('loadingSub').textContent=message;$('retryButton').hidden=false;$('mapStatus').classList.add('error');$('mapStatusText').textContent='الاتصال غير مكتمل';}
+  function setLoadingProgress(text){
+    if(!$('mapLoading').classList.contains('failed'))$('loadingSub').textContent=text;
+  }
+  function mapStyleReady(){
+    if(state.styleReady)return;
+    state.styleReady=true;
+    state.mapReady=true; // MapLibre style is usable even while map tiles continue arriving.
+    $('mapStatusText').textContent='تم تحميل الأساس، جاري تحديد حدود المحافظة…';
+    $('mapStatus').classList.remove('error');
+    try{ensureRoadLayer();}catch(err){console.warn(err);toast('تعذر تطبيق التمييز الإضافي للطرق.');}
+    // Compile and add 3D building layers only when the visitor switches to 3D.
+    drawGovernorateOnly();
+    // Intentionally DO NOT call resetMap() here: it starts a second wave of tile
+    // requests while the initial map tiles are still downloading.
+  }
   function initMap(){
     if(typeof window.maplibregl==='undefined'){
       setMapError('تعذر تحميل مكتبة MapLibre من jsDelivr. اسمح بالاتصال بالمصدر أو استضف المكتبة محليًا.');return;
     }
     try{
+      setLoadingProgress('البدء بخريطة الطرق الخفيفة؛ التضاريس عند الطلب…');
       state.map=new maplibregl.Map({
-        container:'osmMap',style:STYLE_URL,center:CENTER,zoom:8,pitch:45,bearing:-12,
-        maxPitch:80,antialias:true,attributionControl:true,hash:false,
-        canvasContextAttributes:{antialias:true},touchZoomRotate:true
+        container:'osmMap',style:STYLE_URL,center:CENTER,zoom:8,pitch:0,bearing:0,
+        maxPitch:75,antialias:false,attributionControl:true,hash:false,
+        fadeDuration:0, // show ready road labels without lengthy transition fades
+        touchZoomRotate:true
       });
       state.map.on('error',mapError);
+      // style.load fires before MapLibre has waited for every tile and symbol.
+      state.map.once('style.load',mapStyleReady);
       state.map.once('load',()=>{
-        state.mapReady=true;
-        $('mapLoading').hidden=true;$('mapStatusText').textContent='بيانات OpenStreetMap متصلة';$('mapStatus').classList.remove('error');
-        try{ensureRoadLayer();}catch(err){console.warn(err);toast('تعذر تطبيق التمييز الإضافي للطرق.');}
-        try{ensureBuildings();}catch(err){console.warn(err);}
-        enableTerrain();renderMarkers();resetMap();readouts();
+        mapStyleReady();
+        state.firstPaint=true;
+        if(state.boundaryReady)$('mapLoading').hidden=true;
+        $('mapStatusText').textContent=state.boundaryReady?'محافظة البريمي فقط · أسماء عربية':'جاري تحديد حدود المحافظة…';
+        $('mapStatus').classList.remove('error');
       });
       state.map.on('click',onMapClick);
       state.map.on('move',readouts);
       state.map.on('zoom',readouts);
-      setTimeout(()=>{if(!state.mapReady)setMapError('لم يكتمل تحميل الخريطة. قد تكون ملفات الخرائط محجوبة من شبكة العرض.');},19000);
+      // Keep browsing panels accessible during slow network; a loading
+      // screen is not allowed to block the UI indefinitely.
+      setTimeout(()=>{
+        if(!state.styleReady&&!$('mapLoading').classList.contains('failed')){
+          $('mapStatusText').textContent='الاتصال ببيانات الطرق بطيء — سيستمر التحميل';
+        }
+      },4500);
+      setTimeout(()=>{
+        if($('mapLoading').classList.contains('failed')||state.boundaryReady)return;
+        if(!state.boundaryGeo){setMapError('لم تتوفر بيانات حدود محافظة البريمي. تحقق من الشبكة ثم أعد المحاولة.');return;}
+        if(!state.styleReady){
+          $('mapLoading').hidden=false;
+          setMapError('تأخر اتصال الخرائط. تحقق من الشبكة ثم اضغط إعادة المحاولة.');
+        }else if(!state.firstPaint){
+          $('mapStatusText').textContent='الطرق قيد التحميل؛ يمكنك الانتقال بين المواقع';
+        }
+      },16000);
     }catch(err){console.error(err);setMapError('تعذر بدء محرك الخرائط. يُنصح باستخدام Chrome أو Edge أو Safari حديث مع WebGL.');}
   }
   function openDrawer(which){const browse=which==='browse';$('browsePanel').classList.toggle('open',browse);$('detailPanel').classList.toggle('open',!browse);$('mobileBrowse').classList.toggle('active',browse);$('mobileDetail').classList.toggle('active',!browse);$('mobileBrowse').setAttribute('aria-expanded',String(browse));$('mobileDetail').setAttribute('aria-expanded',String(!browse));}
@@ -257,6 +429,7 @@
       description:$('pointDescription').value.trim(),lat:$('pointLat').value,lng:$('pointLng').value};
     const normalized=normalize(candidate,candidate.id);
     if(!normalized||!available(normalized)){toast('يرجى إدخال اسم وإحداثيات صالحة.');return;}
+    if(!state.boundaryGeo||!pointInGeometry(normalized.lng,normalized.lat,state.boundaryGeo.geometry)){toast('الإحداثيات خارج حدود محافظة البريمي.');return;}
     if(state.editingId){const index=state.points.findIndex(p=>p.id===state.editingId);if(index!==-1)state.points[index]=normalized;}
     else state.points.push(normalized);
     state.selectedId=normalized.id;state.road=null;persist();renderList();renderDetail();renderMarkers();$('locationDialog').close();focusSelected();toast('تم حفظ الموقع الجغرافي.');
@@ -285,12 +458,12 @@
   $('zoomOut').addEventListener('click',()=>state.mapReady&&state.map.zoomOut({duration:450}));
   $('mapReset').addEventListener('click',resetMap);
   $('rotateReset').addEventListener('click',()=>state.mapReady&&state.map.easeTo({bearing:0,duration:600}));
-  $('viewModeButton').addEventListener('click',()=>{state.is3D=!state.is3D;updateMode();});
+  $('viewModeButton').addEventListener('click',()=>{state.is3D=!state.is3D;if(state.is3D&&!state.terrainUserSet){state.showTerrain=true;$('terrainToggle').checked=true;}updateMode();if(state.is3D)toast(state.showTerrain?'جار تحميل التضاريس عند الطلب — يمكن متابعة التصفح.':'منظور 3D سريع دون التضاريس بناءً على إعداداتك.');});
   $('wilayaToggle').addEventListener('change',e=>{state.showWilaya=e.target.checked;renderList();renderMarkers();stopTour();});
   $('siteToggle').addEventListener('change',e=>{state.showSite=e.target.checked;renderList();renderMarkers();stopTour();});
   $('roadToggle').addEventListener('change',e=>{state.showRoads=e.target.checked;updateRoadLayer();});
   $('buildingToggle').addEventListener('change',e=>{state.showBuildings=e.target.checked;updateBuildings();});
-  $('terrainToggle').addEventListener('change',e=>{state.showTerrain=e.target.checked;enableTerrain();});
+  $('terrainToggle').addEventListener('change',e=>{state.terrainUserSet=true;state.showTerrain=e.target.checked;enableTerrain();if(state.showTerrain&&!state.is3D)toast('اختر العرض ثلاثي الأبعاد لإظهار التضاريس.');});
   $$('.route-chip').forEach(b=>b.addEventListener('click',()=>{state.roadFilter=b.dataset.road;$$('.route-chip').forEach(item=>item.classList.toggle('active',item===b));updateRoadLayer();}));
   $('mobileBrowse').addEventListener('click',()=>toggleDrawer('browse'));
   $('mobileDetail').addEventListener('click',()=>toggleDrawer('detail'));
@@ -310,6 +483,7 @@
   $('fullscreenButton').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else toast('ملء الشاشة غير مدعوم في هذا المتصفح.');}catch(_){toast('تعذر ملء الشاشة؛ يمكن فتح الصفحة بوضع العرض المستقل.');}});
   $('retryButton').addEventListener('click',()=>location.reload());
   renderList();renderDetail();
+  loadGovernorateBoundary();
   initMap();
   // Cache ONLY same-origin application shell, NEVER third-party dynamic map tiles.
   if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js').catch(()=>{});

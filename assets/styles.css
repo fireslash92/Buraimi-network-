@@ -1,3 +1,5 @@
+/* Critical: author display:flex overrides UA hidden unless explicitly restored. */
+[hidden]{display:none !important}
 :root{--night:#102b33;--night-deep:#071c24;--green:#367862;--gold:#c2a26b;--ink:#23453e;--muted:#6b8079;--stroke:#dce8df;--glass:rgba(255,254,248,.95);font-family:Tahoma,Arial,"Noto Kufi Arabic",sans-serif;color-scheme:light}
 *{box-sizing:border-box}html,body{height:100%;margin:0}body{background:#091e25;color:var(--ink);-webkit-tap-highlight-color:transparent}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #d2ab60;outline-offset:2px}button:disabled{opacity:.5;cursor:default}[hidden]{display:none!important}
 .app-shell{height:100dvh;min-height:540px;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(120deg,#0a2229,#153939)}.site-header{height:78px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:8px clamp(14px,2vw,38px);gap:15px;color:white;background:#0c2730;border-bottom:1px solid #b4c1aa30}.header-brand,.header-actions{display:flex;align-items:center;gap:14px}.brand-symbol{width:53px;height:53px;flex:none;display:grid;place-items:center;border-radius:13px;border:1px solid #d4be8e66;background:#183d3e;color:#efdfbb}.brand-symbol svg{width:41px;height:41px}.brand-words{display:flex;flex-direction:column;gap:3px;min-width:0}.eyebrow{font-size:clamp(8px,.8vw,11px);color:#a9c3be}.brand-words strong{font-size:clamp(15px,1.2vw,22px);letter-spacing:-.03em}.brand-words small{font-size:10px;color:#e0c99e}.expo-flag{display:flex;gap:8px;align-items:center;padding:11px 15px;border-radius:20px;border:1px solid #ffffff30;background:#ffffff0a;white-space:nowrap;font-size:12px;color:#f0e8d7}.expo-flag b{color:#e4c98e}.signal,.status-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#8bd1ab;box-shadow:0 0 0 4px #4c986c33}.icon-btn{width:40px;height:40px;border:1px solid #ffffff3b;background:#ffffff12;border-radius:11px;color:#f5ebd5;font-size:25px;display:grid;place-items:center}.icon-btn:hover{background:#ffffff29}
@@ -26,3 +28,10 @@ body:not(.admin-mode) .manage-controls,body:not(.admin-mode) .manage-hint,body:n
 @media(min-width:821px) and (min-height:1100px){
   .float-panel{bottom:auto;height:min(780px,calc(100% - 258px))}
 }
+
+/* v2.2: keep all basemap tiles (including UAE) invisible until governorate mask is ready. */
+#osmMap{visibility:hidden}
+#osmMap.boundary-ready{visibility:visible}
+/* Render browser-managed interface texts with a font that shapes Arabic correctly. */
+#appShell{font-family:Tahoma,"Noto Sans Arabic","Noto Kufi Arabic",Arial,sans-serif}
+#osmMap .maplibregl-marker{direction:rtl}
