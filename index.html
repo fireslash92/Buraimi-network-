@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#102b33">
-  <meta name="description" content="شبكة الطرق بمحافظة البريمي — خريطة OpenStreetMap ثلاثية الأبعاد — دائرة الطرق بمحافظة البريمي">
+  <meta name="description" content="شبكة الطرق بمحافظة البريمي — خريطة OpenStreetMap تفاعلية سريعة — دائرة الطرق بمحافظة البريمي">
   <title>شبكة الطرق بمحافظة البريمي | المعرض التفاعلي ٢٠٢٦</title>
   <link rel="icon" href="assets/road-icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.9.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="assets/styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.9.0/dist/maplibre-gl.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.js" defer></script>
   <script src="assets/app.js" defer></script>
 </head>
 <body>
@@ -41,12 +41,12 @@
         <div class="map-soft-overlay" aria-hidden="true"></div>
         <div id="mapLoading" class="map-loading" role="status" aria-live="polite">
           <div class="loading-ring" aria-hidden="true"></div>
-          <strong id="loadingTitle">جاري تحميل خريطة البريمي</strong>
-          <span id="loadingSub">جلب الطرق والتضاريس من المصادر الجغرافية المفتوحة...</span>
+          <strong id="loadingTitle">جاري تحميل حدود محافظة البريمي</strong>
+          <span id="loadingSub">يتم تحديد نطاق المحافظة قبل إظهار الخريطة، ثم تحميل شبكة الطرق...</span>
           <button type="button" id="retryButton" class="outline-btn" hidden>إعادة المحاولة</button>
         </div>
         <div class="map-topbar glass-box">
-          <div class="map-title-block"><span class="section-overline">المشهد الجغرافي الرقمي · أكتوبر العمران ٢٠٢٦</span><h1>شبكة الطرق <em>بمحافظة البريمي</em></h1><p>خريطة حية للطرق والتضاريس والمواقع الجغرافية</p></div>
+          <div class="map-title-block"><span class="section-overline">المشهد الجغرافي الرقمي · أكتوبر العمران ٢٠٢٦</span><h1>شبكة الطرق <em>بمحافظة البريمي</em></h1><p>شبكة الطرق داخل حدود محافظة البريمي فقط · أسماء عربية</p></div>
           <div class="status-pill" id="mapStatus"><span class="status-dot"></span><span id="mapStatusText">جاري الاتصال بالخرائط</span></div>
         </div>
         <div class="mobile-switcher glass-box" aria-label="لوحات التفاعل">
@@ -75,16 +75,16 @@
             <div class="edit-actions" id="editActions" hidden><button type="button" id="editSelectedButton" class="quiet-button">تعديل الموقع</button><button type="button" id="deleteSelectedButton" class="quiet-button danger">حذف الموقع</button></div>
           </div>
           <div class="legend-card">
-            <div class="block-title"><h3>الطبقات التفاعلية</h3><small>التحكم في العرض</small></div>
+            <div class="block-title"><h3>الطبقات التفاعلية</h3><small>التضاريس تُحمّل عند تفعيلها فقط</small></div>
             <label class="toggle-row"><span><i class="legend-dot green"></i> علامات الولايات</span><input id="wilayaToggle" type="checkbox" checked><b></b></label>
             <label class="toggle-row"><span><i class="legend-dot gold"></i> علامات المواقع</span><input id="siteToggle" type="checkbox" checked><b></b></label>
             <label class="toggle-row"><span><i class="legend-line"></i> تمييز شبكة الطرق</span><input id="roadToggle" type="checkbox" checked><b></b></label>
             <label class="toggle-row"><span>▥ المباني ثلاثية الأبعاد</span><input id="buildingToggle" type="checkbox" checked><b></b></label>
-            <label class="toggle-row"><span>▲ التضاريس ثلاثية الأبعاد</span><input id="terrainToggle" type="checkbox" checked><b></b></label>
+            <label class="toggle-row"><span>▲ التضاريس ثلاثية الأبعاد</span><input id="terrainToggle" type="checkbox"><b></b></label>
           </div>
           <div class="manage-controls" id="manageControls"><button id="editModeButton" type="button" class="quiet-button">⚙ إدارة المواقع</button><button id="exportButton" type="button" class="quiet-button">↓ تصدير JSON</button><button id="importButton" type="button" class="quiet-button">↑ استيراد JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
           <p class="manage-hint" id="manageHint">وضع الإدارة محلي ولا يمثل نظامًا لحفظ بيانات الوزارة.</p>
-          <div class="source-credit">مصدر الطرق <strong>© OpenStreetMap</strong> · الارتفاعات: AWS/Mapzen. لا تمثل الخريطة سجلًا رسميًا لتبعية الطرق للوزارة.</div>
+          <div class="source-credit">مصدر الطرق <strong>© OpenStreetMap</strong> · حدود المحافظة: بيانات GADM عبر oman-data-bank · الارتفاعات: AWS/Mapzen. الحدود مرجعية لأغراض العرض وليست بديلًا عن ملف GIS المعتمد.</div>
         </aside>
 
         <div class="map-toolbar glass-box" aria-label="أدوات التحكم في الخريطة">
@@ -93,9 +93,9 @@
           <span class="tool-separator"></span>
           <button id="mapReset" class="tool-btn" type="button" title="إظهار جميع الولايات" aria-label="إعادة ضبط الخريطة">⤢</button>
           <button id="rotateReset" class="tool-btn" type="button" title="إعادة الشمال" aria-label="إعادة اتجاه الشمال">⌖</button>
-          <button id="viewModeButton" class="mode-btn" type="button" aria-pressed="true">◩ عرض ثلاثي الأبعاد</button>
+          <button id="viewModeButton" class="mode-btn mode-2d" type="button" aria-pressed="false">◩ عرض ثلاثي الأبعاد</button>
         </div>
-        <div class="view-info glass-box"><span>الميل: <b id="pitchReadout">٦٠°</b></span><span>التقريب: <b id="zoomReadout">—</b></span></div>
+        <div class="view-info glass-box"><span>الميل: <b id="pitchReadout">٠°</b></span><span>التقريب: <b id="zoomReadout">—</b></span></div>
         <div id="adminHint" class="admin-hint" hidden>انقر على أي موضع بالخريطة لإضافة علامة جغرافية</div>
         <div class="road-filter-wrap glass-box"><div class="filter-top"><strong>تصنيف الطرق في OpenStreetMap</strong><small id="roadsHint">اضغط على أي طريق للاطلاع على بياناته</small></div>
           <div class="road-filters" id="roadFilters">
@@ -106,11 +106,11 @@
             <button type="button" class="route-chip" data-road="track">المسارات الترابية</button>
           </div>
         </div>
-        <div class="map-disclaimer">بيانات طرق مفتوحة المصدر لأغراض العرض، وليست بيانًا بالطرق الخاضعة لإشراف الوزارة أو أطوالها المعتمدة.</div>
+        <div class="map-disclaimer">العرض محصور بحدود المحافظة الجغرافية المرجعية. بيانات الطرق من OpenStreetMap وليست سجلًا رسميًا لأصول الوزارة.</div>
       </div>
     </section>
   </main>
-  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٢٫٠ · OpenStreetMap 3D</span></footer>
+  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٢٫٢ · حدود البريمي والعربية</span></footer>
 </div>
 <dialog id="locationDialog" class="edit-dialog" aria-labelledby="dialogTitle">
   <form id="locationForm" method="dialog"><div class="dialog-head"><div><span class="micro-label">إدارة المواقع</span><h2 id="dialogTitle">إضافة موقع</h2></div><button id="dialogClose" type="button" aria-label="إغلاق" class="dialog-close">×</button></div>
