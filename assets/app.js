@@ -16,8 +16,8 @@
   const DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   // Governorate boundary vector dataset (derived from GADM 3.6; remote read-only source).
   // The map stays invisible if this data cannot be loaded. It must never show neighbouring UAE tiles.
-  const BOUNDARY_URL = 'https://raw.githubusercontent.com/NasserAlbusaidi/oman-data-bank/main/public/oman-governorates.json';
-  const BOUNDARY_CACHE = 'buraimi-boundary-v2.2';
+  const BOUNDARY_SOURCES = ['assets/buraimi-boundary.geojson','https://raw.githubusercontent.com/NasserAlbusaidi/oman-data-bank/main/public/oman-governorates.json'];
+  const BOUNDARY_CACHE = 'buraimi-boundary-v2.3';
   const MASK_ID = 'buraimi-outside-hidden';
   const OUTLINE_ID = 'buraimi-governorate-border';
   const ROAD_LAYER = 'buraimi-osm-roads-emphasis';
@@ -161,10 +161,16 @@
     try{const cached=localStorage.getItem(BOUNDARY_CACHE);if(cached)data=JSON.parse(cached);}catch(_){/* optional cache */}
     if(!data){
       try{
-        const response=await fetch(BOUNDARY_URL,{mode:'cors',cache:'force-cache'});
-        if(!response.ok)throw Error('HTTP '+response.status);
-        const collection=await response.json();
-        data=extractGovernorate(collection);
+        let lastError=null;
+        for(const url of BOUNDARY_SOURCES){
+          try{
+            const response=await fetch(url,{cache:'force-cache',signal:AbortSignal.timeout(10000)});
+            if(!response.ok)throw Error('HTTP '+response.status);
+            data=extractGovernorate(await response.json());
+            break;
+          }catch(err){lastError=err;console.warn('Governorate boundary source unavailable:',url,err);}
+        }
+        if(!data)throw lastError||Error('لا توجد حدود متاحة');
         try{localStorage.setItem(BOUNDARY_CACHE,JSON.stringify(data));}catch(_){/* optional cache */}
       }catch(error){
         console.error('Governorate data:',error);
@@ -363,7 +369,7 @@
   }
   function initMap(){
     if(typeof window.maplibregl==='undefined'){
-      setMapError('تعذر تحميل مكتبة MapLibre من jsDelivr. اسمح بالاتصال بالمصدر أو استضف المكتبة محليًا.');return;
+      setMapError('تعذر بدء مكتبة الخرائط. يُرجى تحديث الصفحة أو مراجعة اتصال الشبكة.');return;
     }
     try{
       setLoadingProgress('البدء بخريطة الطرق الخفيفة؛ التضاريس عند الطلب…');
