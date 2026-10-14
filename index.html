@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#102b33">
+  <meta name="description" content="عرض تفاعلي لشبكة الطرق بمحافظة البريمي — دائرة الطرق بمحافظة البريمي — أكتوبر العمران 2026">
+  <title>شبكة الطرق بمحافظة البريمي | دائرة الطرق</title>
+  <link rel="icon" href="assets/road-icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/app.js" defer></script>
+</head>
+<body>
+<div class="app-shell" id="appShell">
+  <header class="site-header">
+    <div class="header-brand">
+      <div class="brand-symbol" aria-hidden="true">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><circle cx="32" cy="32" r="29" stroke="currentColor" stroke-width="1.5" opacity=".55"/><path d="M24 53C28 40 27 23 24 11M40 53C36 40 37 23 40 11" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><path d="M32 17v6m0 8v6m0 8v5" stroke="#f4ddb0" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </div>
+      <div class="brand-words">
+        <span class="eyebrow">سلطنة عُمان · وزارة النقل والاتصالات وتقنية المعلومات</span>
+        <strong>دائرة الطرق بمحافظة البريمي</strong>
+        <small>عرض تفاعلي لشبكة الطرق</small>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="expo-flag"><span class="signal" aria-hidden="true"></span> أكتوبر العمران <b>٢٠٢٦</b></span>
+      <button class="icon-btn header-btn" id="themeButton" type="button" aria-label="تبديل ألوان العرض" title="تبديل ألوان العرض"><span id="themeIcon">☼</span></button>
+      <button class="icon-btn header-btn" id="fullscreenButton" type="button" aria-label="ملء الشاشة" title="ملء الشاشة">⛶</button>
+    </div>
+  </header>
+
+  <section class="intro-banner" aria-label="مقدمة المعرض">
+    <div class="intro-copy">
+      <p class="section-overline"><span class="line-accent"></span> اكتشف الطرق، واكتشف الترابط</p>
+      <h1>شبكة الطرق <em>بمحافظة البريمي</em></h1>
+      <p>منصة عرض تفاعلية لاستكشاف الولايات والمواقع على المخطط التوضيحي، بتجربة مصممة لشاشات اللمس.</p>
+    </div>
+    <div class="banner-meta">
+      <div class="meta-block"><span>النطاق الجغرافي</span><strong>محافظة البريمي</strong></div>
+      <div class="meta-divider"></div>
+      <div class="meta-block"><span>الولايات</span><strong>٣ ولايات</strong></div>
+      <div class="meta-divider"></div>
+      <div class="meta-block"><span>نوع العرض</span><strong>خريطة تفاعلية</strong></div>
+    </div>
+  </section>
+
+  <main class="workspace" id="workspace">
+    <aside class="side-panel browse-panel" aria-label="استكشاف المواقع">
+      <div class="panel-head"><div><span class="micro-label">التصفّح والتفاعل</span><h2>استكشف الخريطة</h2></div><span class="tiny-circle" aria-hidden="true">⌖</span></div>
+      <label class="search-box" for="searchInput"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="ابحث عن ولاية أو موقع..." autocomplete="off"><kbd>⌕</kbd></label>
+      <div class="tab-row" role="tablist" aria-label="نوع المواقع">
+        <button type="button" role="tab" aria-selected="true" data-filter="all" class="tab active">الكل</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="wilaya" class="tab">الولايات</button>
+        <button type="button" role="tab" aria-selected="false" data-filter="site" class="tab">المواقع</button>
+      </div>
+      <div class="list-meta"><span>النتائج المتاحة</span><span id="resultCount" class="result-count">٧</span></div>
+      <div id="locationList" class="location-list" aria-label="قائمة المواقع"></div>
+      <div class="browse-bottom"><button id="tourButton" type="button" class="primary-btn"><span class="play-icon" id="tourIcon">▶</span><span id="tourText">بدء الجولة التفاعلية</span></button><p>اختر موقعًا لاستكشافه على الخريطة، أو ابدأ جولة تعريفية.</p></div>
+    </aside>
+
+    <section class="map-panel" aria-label="الخريطة التفاعلية">
+      <div class="map-header">
+        <div><span class="micro-label">المشهد الجغرافي</span><h2>المخطط التوضيحي للطرق</h2></div>
+        <span class="map-state"><span class="live-dot"></span> وضع تفاعلي</span>
+      </div>
+      <div class="map-stage" id="mapStage" tabindex="0" aria-label="خريطة تفاعلية؛ حرّك بالإصبع أو الفأرة وكبّر بعجلة الفأرة أو بإصبعين">
+        <div class="map-ambient" aria-hidden="true"></div>
+        <div class="compass" aria-hidden="true"><span>ش</span><i></i></div>
+        <div id="mapArt" class="map-art">
+          <img id="referenceMap" src="assets/map-reference.jpg" alt="مخطط توضيحي لشبكة الطرق بمحافظة البريمي مقدم من المستخدم" width="500" height="708" draggable="false">
+          <svg class="route-svg" id="routeSvg" viewBox="0 0 500 708" preserveAspectRatio="none" aria-hidden="true">
+            <path data-route="north" d="M 278 115 C 270 148, 269 196, 267 232 S 273 293, 265 319 S 251 331, 245 336"/>
+            <path data-route="link" d="M 245 336 C 264 320, 277 311, 282 301 S 303 278, 312 269"/>
+            <path data-route="south" d="M 255 435 C 284 427, 304 404, 323 395 S 329 375, 339 369 S 362 401, 376 412"/>
+          </svg>
+          <div id="pinsLayer" class="pins-layer"></div>
+          <div id="mapTapHint" class="map-tap-hint" hidden>المس الخريطة لإضافة موقع</div>
+        </div>
+        <div class="map-vignette" aria-hidden="true"></div>
+        <div class="map-toolbar" aria-label="التحكم في الخريطة">
+          <button type="button" class="tool-btn" id="zoomIn" aria-label="تكبير الخريطة" title="تكبير">+</button>
+          <button type="button" class="tool-btn" id="zoomOut" aria-label="تصغير الخريطة" title="تصغير">−</button>
+          <span class="tool-break" aria-hidden="true"></span>
+          <button type="button" class="tool-btn fit-btn" id="mapReset" aria-label="إعادة ملاءمة الخريطة" title="إظهار كامل الخريطة">⤢</button>
+        </div>
+        <div class="map-zoom"><strong id="zoomReadout">١٠٠٪</strong><span>مستوى العرض</span></div>
+        <div class="touch-tip" id="touchTip">✥ اسحب للتحريك · قرّب بإصبعين للتكبير</div>
+        <div class="map-note"><span class="note-icon">i</span><span>مواقع ومسارات إيضاحية على خريطة مرجعية، وليست بيانات GIS معتمدة.</span></div>
+      </div>
+      <div class="map-bottom-bar">
+        <div class="route-actions">
+          <span class="route-caption">تمييز المسار</span>
+          <button type="button" data-route-select="north" class="route-chip"><i style="--chip-color:#d8ae63"></i> المسار الشمالي</button>
+          <button type="button" data-route-select="link" class="route-chip"><i style="--chip-color:#39a9aa"></i> مسار الربط</button>
+          <button type="button" data-route-select="south" class="route-chip"><i style="--chip-color:#82b879"></i> المسار الجنوبي</button>
+          <button type="button" data-route-select="off" class="route-clear" title="إلغاء إبراز المسارات">إلغاء</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side-panel detail-panel" aria-label="تفاصيل الموقع والخيارات">
+      <div class="panel-head"><div><span class="micro-label">البيانات التفاعلية</span><h2>تفاصيل الاستكشاف</h2></div><span class="tiny-circle" aria-hidden="true">◇</span></div>
+      <div class="selected-card" id="selectedCard">
+        <div class="selected-icon" id="detailIcon">⌖</div>
+        <span class="selected-kicker" id="detailType">ولاية</span>
+        <h3 id="detailTitle">ولاية البريمي</h3>
+        <p id="detailDesc">اختر أي موقع لتظهر معلوماته، وتنتقل الخريطة إليه تلقائيًا.</p>
+        <div class="detail-meta"><span>مرجع العرض</span><strong id="detailCoordinate">موضع تقريبي</strong></div>
+        <button id="focusButton" type="button" class="outline-btn">التركيز على الموقع <span aria-hidden="true">↗</span></button>
+        <div id="editActions" class="edit-actions" hidden><button type="button" id="editSelectedButton" class="small-action">تعديل الموقع</button><button type="button" id="deleteSelectedButton" class="small-action danger">حذف الموقع</button></div>
+      </div>
+      <div class="legend-card">
+        <div class="block-title"><h3>مفاتيح العرض</h3><span>إظهار / إخفاء</span></div>
+        <label class="toggle-row"><span><i class="legend-dot legend-wilaya"></i> الولايات</span><input id="wilayaToggle" type="checkbox" checked role="switch"><b></b></label>
+        <label class="toggle-row"><span><i class="legend-dot legend-site"></i> المواقع</span><input id="siteToggle" type="checkbox" checked role="switch"><b></b></label>
+        <label class="toggle-row"><span><i class="legend-line"></i> تمييز المسارات</span><input id="routeToggle" type="checkbox" checked role="switch"><b></b></label>
+      </div>
+      <div class="information-card"><span class="info-star">✦</span><strong>للعرض على شاشات المعرض</strong><p>يتكيّف تلقائيًا مع الشاشات الأفقية والرأسية، ويدعم اللمس والماوس ولوحة المفاتيح.</p></div>
+      <div class="manage-controls"><button id="editModeButton" type="button" class="quiet-button">⚙ إدارة المواقع</button><button id="exportButton" type="button" class="quiet-button">↓ تصدير البيانات</button><button id="importButton" type="button" class="quiet-button">↑ استيراد البيانات</button><input id="importFile" accept="application/json,.json" type="file" hidden></div>
+      <p class="manage-hint" id="manageHint">يمكن تخصيص المواقع وحفظ التعديلات على الجهاز المستخدم. لا يتطلب التطبيق خادمًا أو قاعدة بيانات.</p>
+    </aside>
+  </main>
+
+  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-separator" aria-hidden="true">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-code">تجربة المعرض · إصدار ١٫٠</span></footer>
+</div>
+
+<dialog id="locationDialog" class="edit-dialog" aria-labelledby="dialogTitle">
+  <form id="locationForm" method="dialog">
+    <div class="dialog-head"><div><span class="micro-label">تخصيص العرض</span><h2 id="dialogTitle">إضافة موقع تفاعلي</h2></div><button type="button" id="dialogClose" class="dialog-close" aria-label="إغلاق">×</button></div>
+    <label>اسم الموقع<input name="title" id="pointTitle" maxlength="60" required placeholder="مثال: موقع على طريق رئيسي"></label>
+    <label>نوع الموقع<select name="kind" id="pointKind"><option value="site">موقع</option><option value="wilaya">ولاية</option></select></label>
+    <label>وصف قصير<textarea name="description" id="pointDescription" rows="3" maxlength="240" placeholder="اكتب وصفًا مناسبًا للزوار"></textarea></label>
+    <div class="dialog-actions"><button type="button" id="dialogCancel" class="outline-btn">إلغاء</button><button type="submit" class="primary-btn">حفظ الموقع</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
