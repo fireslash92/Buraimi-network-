@@ -9,8 +9,8 @@
   <link rel="icon" href="assets/road-icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
-  <link rel="stylesheet" href="assets/styles.css?v=5.0">
-  <script type="module" src="assets/bootstrap.js?v=5.0"></script>
+  <link rel="stylesheet" href="assets/styles.css?v=5.1">
+  <script type="module" src="assets/bootstrap.js?v=5.1"></script>
 </head>
 <body>
 <div id="appShell" class="app-shell">
@@ -130,6 +130,18 @@
           <div class="source-credit">بيانات الطرق المفتوحة <strong>© OpenStreetMap</strong> · منشآت الطرق: ملف KMZ المرفق · حدود المحافظة: ملف GeoJSON محلي أو مصدر حدود مرجعي · الارتفاعات: AWS/Mapzen. الحدود مرجعية لأغراض العرض وليست بديلًا عن ملف GIS المعتمد.</div>
         </aside>
 
+        <div class="road-color-legend glass-box" id="roadColorLegend" role="group" aria-label="ألوان مسارات الطرق وفق التصنيف الهندسي">
+          <div class="road-color-heading"><strong>ألوان شبكة الطرق</strong><button id="roadColorCollapse" type="button" aria-controls="roadColorList" aria-expanded="true" aria-label="طي أو فتح مفتاح الألوان" title="إخفاء المفتاح">−</button><button type="button" id="roadColorReset" title="إظهار جميع التصنيفات" aria-label="إظهار جميع تصنيفات الطرق">الكل</button></div>
+          <div class="road-color-list" id="roadColorList">
+            <button type="button" data-route-cat="وطني" class="active" aria-pressed="true"><i style="--route-color:#7AEA7A"></i><b>N</b><span>وطني</span></button>
+            <button type="button" data-route-cat="شرياني" class="active" aria-pressed="true"><i style="--route-color:#233EA5"></i><b>A</b><span>شرياني</span></button>
+            <button type="button" data-route-cat="ثانوي" class="active" aria-pressed="true"><i style="--route-color:#F8A123"></i><b>S</b><span>ثانوي</span></button>
+            <button type="button" data-route-cat="موزع" class="active" aria-pressed="true"><i style="--route-color:#69402B"></i><b>D</b><span>موزع</span></button>
+            <button type="button" data-route-cat="محلي" class="active" aria-pressed="true"><i style="--route-color:#1AB3DC"></i><b>L</b><span>محلي</span></button>
+          </div>
+          <small id="routeColorSource">التطابق: رموز الطرق في OSM</small>
+          <small class="road-color-note" id="routeColorNote">اللون يظهر للمقاطع التي يتوفر رمز مطابق لها، وليس لكل شبكة الطرق.</small>
+        </div>
         <div class="camera-pad glass-box" role="group" aria-label="تدوير وإمالة الخريطة">
           <div class="camera-heading"><strong>حرك المشهد</strong><span>٣٦٠°</span></div>
           <div class="camera-grid">
@@ -166,11 +178,11 @@
           <strong>الخريطة بين يديك</strong>
           <span>اسحب للتحريك • بإصبعين للتدوير والتقريب والإمالة</span>
         </div>
-        <div class="map-disclaimer">الطرق الأساسية: OpenStreetMap · أسماء وتصنيف ٢٢ طريقًا: المخطط الهندسي المصور · منشآت هندسية: KMZ · حدود المحافظة: GeoJSON؛ تُستعمل البيانات لأغراض العرض التعريفي ولا تؤكد مسارات هندسية دقيقة.</div>
+        <div class="map-disclaimer">خطوط الطرق ذات الرموز المتطابقة: OSM أو ملف GIS عند توفره · دليل ٢٢ طريقًا: مخطط هندسي · المنشآت: KMZ · الحدود: GeoJSON. لا تُعرض مسارات مقدّرة من الصورة.</div>
       </div>
     </section>
   </main>
-  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٥٫٠ · دليل الطرق ومكوناتها</span></footer>
+  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٥٫١ · المسارات الملونة</span></footer>
 </div>
 <dialog id="locationDialog" class="edit-dialog" aria-labelledby="dialogTitle">
   <form id="locationForm" method="dialog"><div class="dialog-head"><div><span class="micro-label">إدارة المواقع</span><h2 id="dialogTitle">إضافة موقع</h2></div><button id="dialogClose" type="button" aria-label="إغلاق" class="dialog-close">×</button></div>
