@@ -17,7 +17,7 @@
   // Governorate boundary vector dataset (derived from GADM 3.6; remote read-only source).
   // The map stays invisible if this data cannot be loaded. It must never show neighbouring UAE tiles.
   const BOUNDARY_SOURCES = ['assets/buraimi-boundary.geojson','https://raw.githubusercontent.com/NasserAlbusaidi/oman-data-bank/main/public/oman-governorates.json','https://cdn.jsdelivr.net/gh/NasserAlbusaidi/oman-data-bank@main/public/oman-governorates.json'];
-  const BOUNDARY_CACHE = 'buraimi-boundary-v2.4';
+  const BOUNDARY_CACHE = 'buraimi-boundary-v3.0';
   const MASK_ID = 'buraimi-outside-hidden';
   const OUTLINE_ID = 'buraimi-governorate-border';
   const ROAD_LAYER = 'buraimi-osm-roads-emphasis';
@@ -44,13 +44,16 @@
     {id:'fayadh',title:'الفياض',kind:'site',lat:null,lng:null,description:'وارد في المخطط الأصلي. ينتظر إضافة إحداثيات جغرافية دقيقة من الإدارة.'}
   ];
   const params = new URLSearchParams(location.search);
+  const reduceMotionSystem = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionPreferenceKey = 'buraimi-roads-motion-v3';
+  const accessibilityKey = 'buraimi-roads-access-v3';
   const adminAvailable = params.get('admin') === '1'; // UI-only, NOT a security measure.
   document.body.classList.toggle('admin-mode',adminAvailable);
   const state = {
     points: loadPoints(), selectedId:'buraimi', road:null, filter:'all', term:'', roadFilter:'all',
     showWilaya:true,showSite:true,showRoads:true,showBuildings:true,showTerrain:false,terrainUserSet:false,
     is3D:false, editMode:false,editingId:null, pendingCoords:null, markers:[], map:null,
-    mapReady:false, styleReady:false, firstPaint:false, sourceId:null, buildingLayerIds:[], tourTimer:null, toastTimer:null, errorCount:0, boundaryGeo:null, boundaryReady:false, boundaryLoading:false
+    mapReady:false, styleReady:false, firstPaint:false, sourceId:null, buildingLayerIds:[], tourTimer:null, orbitTimer:null, autoIdleTimer:null, toastTimer:null, errorCount:0, boundaryGeo:null, boundaryReady:false, boundaryLoading:false
   };
   if(!state.points.some(p=>p.id==='buraimi'))state.selectedId=state.points[0]?.id||null;
   // The boundaries come from the governorate polygon, NOT from a loose rectangular bbox.
@@ -148,6 +151,8 @@
       $('mapLoading').classList.remove('failed');
       $('osmMap').classList.add('boundary-ready');
       $('mapLoading').hidden=true;
+      if(state.map&&typeof state.map.resize==='function')state.map.resize();
+      startIdleCountdown();
       $('mapStatusText').textContent='محافظة البريمي فقط · عرض عربي';
       $('mapStatus').classList.remove('error');
       renderMarkers();readouts();
@@ -257,21 +262,24 @@
   }
   function focusSelected(){
     if(!state.mapReady||!state.boundaryReady)return;
-    if(state.road){state.map.flyTo({center:[state.road.lng,state.road.lat],zoom:Math.max(13,state.map.getZoom()),pitch:state.is3D?61:0,essential:true,duration:1500});return;}
+    if(state.road){state.map.flyTo({center:[state.road.lng,state.road.lat],zoom:Math.max(13,state.map.getZoom()),pitch:state.is3D?61:0,duration:motionDuration(1500)});return;}
     const p=state.points.find(i=>i.id===state.selectedId);if(!available(p))return;
     if(!pointInGeometry(p.lng,p.lat,state.boundaryGeo?.geometry)){toast('هذا الموقع يقع خارج حدود المحافظة بحسب بيانات الحدود المتاحة.');return;}
-    state.map.flyTo({center:[p.lng,p.lat],zoom:12.4,pitch:state.is3D?62:0,bearing:state.is3D?-20:0,duration:1800,essential:true});
+    state.map.flyTo({center:[p.lng,p.lat],zoom:12.4,pitch:state.is3D?62:0,bearing:state.is3D?-20:0,duration:motionDuration(1800)});
   }
   function toggleTour(){
+    stopOrbit();
     if(state.tourTimer){stopTour();return;}
     if(!state.mapReady||!state.boundaryReady){toast('انتظر تحميل حدود محافظة البريمي.');return;}
     const entries=listFiltered().filter(available);if(!entries.length){toast('لا توجد مواقع محددة الإحداثيات لبدء الجولة.');return;}
     let i=0;const next=()=>{const p=entries[i++%entries.length];selectPoint(p.id,true);};next();state.tourTimer=setInterval(next,8500);
-    $('tourIcon').textContent='■';$('tourText').textContent='إيقاف الجولة';$('tourButton').setAttribute('aria-pressed','true');closeDrawer('browse');
+    $('tourIcon').textContent='■';$('tourText').textContent='إيقاف الجولة';$('tourButton').setAttribute('aria-pressed','true');$('tourShortcutLabel').textContent='إيقاف الجولة';$('tourShortcut').classList.add('active');closeDrawer('browse');
   }
-  function stopTour(){clearInterval(state.tourTimer);state.tourTimer=null;$('tourIcon').textContent='▶';$('tourText').textContent='بدء جولة تفاعلية';$('tourButton').setAttribute('aria-pressed','false');}
-  function resetMap(){if(!state.mapReady||!state.boundaryReady)return;stopTour();state.map.fitBounds(BOUNDS,{padding:Math.max(45,Math.min(innerWidth*.07,110)),pitch:state.is3D?45:0,bearing:state.is3D?-12:0,duration:1500,essential:true});}
-  function readouts(){if(!state.mapReady)return;$('pitchReadout').textContent=ar(`${Math.round(state.map.getPitch())}°`);$('zoomReadout').textContent=ar(state.map.getZoom().toFixed(1));}
+  function stopTour(){clearInterval(state.tourTimer);state.tourTimer=null;$('tourIcon').textContent='▶';$('tourText').textContent='بدء جولة تفاعلية';$('tourButton').setAttribute('aria-pressed','false');$('tourShortcutLabel').textContent='جولة مرئية';$('tourShortcut').classList.remove('active');}
+  function resetMap(){if(!state.mapReady||!state.boundaryReady)return;stopTour();state.map.fitBounds(BOUNDS,{padding:Math.max(45,Math.min(innerWidth*.07,110)),pitch:state.is3D?45:0,bearing:state.is3D?-12:0,duration:motionDuration(1500)});}
+  function readouts(){if(!state.mapReady)return;$('pitchReadout').textContent=ar(`${Math.round(state.map.getPitch())}°`);$('zoomReadout').textContent=ar(state.map.getZoom().toFixed(1));
+    $('pitchSlider').value=Math.round(state.map.getPitch());$('pitchSliderValue').textContent=ar(`${Math.round(state.map.getPitch())}°`);
+    $('compassNeedle').style.transform=`rotate(${-state.map.getBearing()}deg)`;}
   function roadFilterExpression(){return ['in',['get','class'],['literal',ROAD_TYPES[state.roadFilter]]];}
   function updateRoadLayer(){
     if(!state.mapReady||!state.map.getLayer(ROAD_LAYER))return;
@@ -329,7 +337,7 @@
     if(!state.mapReady)return;
     if(state.is3D){try{ensureBuildings();}catch(err){console.warn('Buildings unavailable:',err);}}
     enableTerrain();updateBuildings();
-    state.map.easeTo({pitch:state.is3D?54:0,bearing:state.is3D?-15:0,duration:800,essential:true});
+    state.map.easeTo({pitch:state.is3D?54:0,duration:motionDuration(750)});
     $('viewModeButton').classList.toggle('mode-2d',!state.is3D);
     $('viewModeButton').textContent=state.is3D?'▤ العودة إلى 2D':'◩ عرض ثلاثي الأبعاد';
     $('viewModeButton').setAttribute('aria-pressed',String(state.is3D));
@@ -375,10 +383,12 @@
       setLoadingProgress('البدء بخريطة الطرق الخفيفة؛ التضاريس عند الطلب…');
       state.map=new maplibregl.Map({
         container:'osmMap',style:STYLE_URL,center:CENTER,zoom:8,pitch:0,bearing:0,
-        maxPitch:75,antialias:false,attributionControl:true,hash:false,
+        maxPitch:75,minPitch:0,antialias:false,attributionControl:true,hash:false,
         fadeDuration:0, // show ready road labels without lengthy transition fades
-        touchZoomRotate:true
+        dragPan:true,dragRotate:true,pitchWithRotate:true,touchZoomRotate:true,touchPitch:true,keyboard:true,cooperativeGestures:false
       });
+      state.map.touchZoomRotate.enableRotation();
+      state.map.touchPitch.enable();
       state.map.on('error',mapError);
       // style.load fires before MapLibre has waited for every tile and symbol.
       state.map.once('style.load',mapStyleReady);
@@ -392,6 +402,8 @@
       state.map.on('click',onMapClick);
       state.map.on('move',readouts);
       state.map.on('zoom',readouts);
+      state.map.on('rotate',readouts);
+      state.map.on('pitch',readouts);
       // Keep browsing panels accessible during slow network; a loading
       // screen is not allowed to block the UI indefinitely.
       setTimeout(()=>{
@@ -411,7 +423,7 @@
       },16000);
     }catch(err){console.error(err);setMapError('تعذر بدء محرك الخرائط. يُنصح باستخدام Chrome أو Edge أو Safari حديث مع WebGL.');}
   }
-  function openDrawer(which){const browse=which==='browse';$('browsePanel').classList.toggle('open',browse);$('detailPanel').classList.toggle('open',!browse);$('mobileBrowse').classList.toggle('active',browse);$('mobileDetail').classList.toggle('active',!browse);$('mobileBrowse').setAttribute('aria-expanded',String(browse));$('mobileDetail').setAttribute('aria-expanded',String(!browse));}
+  function openDrawer(which){closeFilters();const browse=which==='browse';$('browsePanel').classList.toggle('open',browse);$('detailPanel').classList.toggle('open',!browse);$('mobileBrowse').classList.toggle('active',browse);$('mobileDetail').classList.toggle('active',!browse);$('mobileBrowse').setAttribute('aria-expanded',String(browse));$('mobileDetail').setAttribute('aria-expanded',String(!browse));}
   function closeDrawer(which){const name=which==='browse'?'browsePanel':'detailPanel',toggle=which==='browse'?'mobileBrowse':'mobileDetail';$(name).classList.remove('open');$(toggle).classList.remove('active');$(toggle).setAttribute('aria-expanded','false');}
   function toggleDrawer(which){const target=which==='browse'?'browsePanel':'detailPanel';if($(target).classList.contains('open'))closeDrawer(which);else openDrawer(which);}
   function toggleEdit(){
@@ -455,6 +467,91 @@
       state.points=verified;state.selectedId=verified[0].id;state.road=null;persist();renderList();renderDetail();renderMarkers();resetMap();toast('تم استيراد المواقع. أي مواضع قديمة على الصورة بلا GPS ستبقى دون علامات.');
     }catch(err){toast('ملف JSON غير صالح. تحقق من وجود قائمة locations.');}
   }
+  // v3 immersive exhibition controls. Limit auto-motion and never override active visitors.
+  let reducedMotion = reduceMotionSystem;
+  try{const pref=localStorage.getItem(motionPreferenceKey);if(pref!==null)reducedMotion=pref==='true';}catch(_){/* optional */}
+  function motionDuration(ms){return reducedMotion?0:ms;}
+  function shiftBearing(delta){if(!state.mapReady)return;stopOrbit();state.map.easeTo({bearing:state.map.getBearing()+delta,duration:motionDuration(500)});}
+  function shiftPitch(delta){if(!state.mapReady)return;stopOrbit();state.map.easeTo({pitch:Math.max(0,Math.min(75,state.map.getPitch()+delta)),duration:motionDuration(430)});}
+  function stopOrbit(){if(state.orbitTimer){clearInterval(state.orbitTimer);state.orbitTimer=null;}if($('orbitLabel'))$('orbitLabel').textContent='دوران تلقائي';$('orbitButton')?.classList.remove('active');$('orbitButton')?.setAttribute('aria-pressed','false');}
+  function startOrbit(){
+    if(!state.boundaryReady){toast('انتظر ظهور خريطة البريمي.');return;}
+    if(reducedMotion){toast('الدوران متوقف في إعداد تقليل الحركة. يمكن تغييره من المساعدة.');return;}
+    stopTour();stopOrbit();closeDrawer('browse');closeDrawer('detail');closeFilters();
+    // Orbit the currently viewed part of Al Buraimi without demanding other regions' tiles.
+    state.map.easeTo({pitch:55,duration:1500});
+    state.orbitTimer=setInterval(()=>{
+      if(!state.mapReady||!state.boundaryReady){stopOrbit();return;}
+      state.map.easeTo({bearing:state.map.getBearing()+12,duration:4000,easing:t=>t});
+    },4100);
+    state.map.easeTo({bearing:state.map.getBearing()+12,duration:4000,easing:t=>t});
+    $('orbitLabel').textContent='إيقاف الدوران';$('orbitButton').classList.add('active');$('orbitButton').setAttribute('aria-pressed','true');
+  }
+  function toggleOrbit(){if(state.orbitTimer){stopOrbit();startIdleCountdown();}else startOrbit();}
+  function startIdleCountdown(){
+    if(state.autoIdleTimer)clearTimeout(state.autoIdleTimer);
+    if(!state.boundaryReady||reducedMotion||state.editMode||!document.hasFocus())return;
+    // On an exhibition screen, motion attracts visitors only after 80s without interaction.
+    state.autoIdleTimer=setTimeout(()=>{if(!state.tourTimer&&!state.orbitTimer&&!$('helpDialog').open&&!state.editMode)startOrbit();},80000);
+  }
+  function markUserActivity(){if(state.orbitTimer)stopOrbit();startIdleCountdown();}
+  function closeFilters(){$('roadFiltersPanel').hidden=true;$('filterPanelToggle').classList.remove('active');$('filterPanelToggle').setAttribute('aria-expanded','false');}
+  function toggleFilters(){const show=$('roadFiltersPanel').hidden;closeDrawer('browse');closeDrawer('detail');$('roadFiltersPanel').hidden=!show;$('filterPanelToggle').classList.toggle('active',show);$('filterPanelToggle').setAttribute('aria-expanded',String(show));}
+  function openHelp(){stopOrbit();$('helpDialog').showModal();}
+  function closeHelp(){$('helpDialog').close();startIdleCountdown();}
+  function applyAccessPrefs(){
+    const large=$('largeTextToggle').checked,contrast=$('highContrastToggle').checked;
+    document.body.classList.toggle('large-touch',large);
+    document.body.classList.toggle('high-contrast',contrast);
+    reducedMotion=$('reducedMotionToggle').checked;
+    if(reducedMotion)stopOrbit();
+    try{localStorage.setItem(accessibilityKey,JSON.stringify({large,contrast}));localStorage.setItem(motionPreferenceKey,String(reducedMotion));}catch(_){/* optional */}
+    startIdleCountdown();
+  }
+  try{const a=JSON.parse(localStorage.getItem(accessibilityKey)||'{}');$('largeTextToggle').checked=!!a.large;$('highContrastToggle').checked=!!a.contrast;}catch(_){/* optional */}
+  $('reducedMotionToggle').checked=reducedMotion;applyAccessPrefs();
+  $('rotateLeft').addEventListener('click',()=>shiftBearing(-25));
+  $('rotateRight').addEventListener('click',()=>shiftBearing(25));
+  $('tiltUp').addEventListener('click',()=>shiftPitch(12));
+  $('tiltDown').addEventListener('click',()=>shiftPitch(-12));
+  $('cameraNorth').addEventListener('click',()=>state.mapReady&&state.map.easeTo({bearing:0,duration:motionDuration(500)}));
+  $('pitchSlider').addEventListener('input',e=>{if(!state.mapReady)return;stopOrbit();state.map.setPitch(Number(e.target.value));readouts();});
+  $('orbitButton').addEventListener('click',toggleOrbit);
+  $('tourShortcut').addEventListener('click',toggleTour);
+  $('filterPanelToggle').addEventListener('click',toggleFilters);
+  $('helpButtonHeader').addEventListener('click',openHelp);
+  $('helpClose').addEventListener('click',closeHelp);
+  $('helpDone').addEventListener('click',closeHelp);
+  $('helpDialog').addEventListener('click',e=>{if(e.target===$('helpDialog'))closeHelp();});
+  for(const id of ['largeTextToggle','highContrastToggle','reducedMotionToggle'])$(id).addEventListener('change',applyAccessPrefs);
+  $('dismissHint').addEventListener('click',()=>{$('gestureHint').hidden=true;});
+  try{if(localStorage.getItem('buraimi-hint-dismissed')==='yes')$('gestureHint').hidden=true;}catch(_){/* no storage */}
+  $('dismissHint').addEventListener('click',()=>{try{localStorage.setItem('buraimi-hint-dismissed','yes');}catch(_){}});
+  // Avoid trapping keyboard gestures while typing or using dialogs.
+  document.addEventListener('keydown',e=>{
+    const el=e.target;if(el&&(/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)||el.isContentEditable))return;
+    if($('helpDialog').open||$('locationDialog').open)return;
+    const key=e.key.toLowerCase();
+    if(['q','e','w','s','0','f','h','t'].includes(key)&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+      if(key==='q')shiftBearing(-15);
+      if(key==='e')shiftBearing(15);
+      if(key==='w')shiftPitch(8);
+      if(key==='s')shiftPitch(-8);
+      if(key==='0'){if(state.mapReady)state.map.easeTo({pitch:0,bearing:0,duration:motionDuration(450)});}
+      if(key==='f')$('fullscreenButton').click();
+      if(key==='h')openHelp();
+      if(key==='t')toggleTour();
+      e.preventDefault();
+    }
+    if(e.key==='Escape'){closeDrawer('browse');closeDrawer('detail');closeFilters();stopOrbit();}
+  });
+  // Only direct user gestures interrupt the attraction mode (not programmatic animation events).
+  $('mapStage').addEventListener('pointerdown',markUserActivity,{passive:true});
+  $('mapStage').addEventListener('wheel',markUserActivity,{passive:true});
+  $('mapStage').addEventListener('touchstart',markUserActivity,{passive:true});
+  window.addEventListener('resize',()=>{if(state.mapReady)state.map.resize();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopOrbit();if(state.autoIdleTimer)clearTimeout(state.autoIdleTimer);}else startIdleCountdown();});
+  document.addEventListener('fullscreenchange',()=>{$('fullscreenButton').setAttribute('aria-label',document.fullscreenElement?'الخروج من ملء الشاشة':'ملء الشاشة');if(state.mapReady)setTimeout(()=>state.map.resize(),200);});
   // Interactions
   $$('.tab').forEach(btn=>btn.addEventListener('click',()=>{state.filter=btn.dataset.filter;$$('.tab').forEach(b=>{const yes=b===btn;b.classList.toggle('active',yes);b.setAttribute('aria-selected',String(yes));});renderList();}));
   $('searchInput').addEventListener('input',e=>{state.term=e.target.value.trim();renderList();});
@@ -463,8 +560,8 @@
   $('zoomIn').addEventListener('click',()=>state.mapReady&&state.map.zoomIn({duration:450}));
   $('zoomOut').addEventListener('click',()=>state.mapReady&&state.map.zoomOut({duration:450}));
   $('mapReset').addEventListener('click',resetMap);
-  $('rotateReset').addEventListener('click',()=>state.mapReady&&state.map.easeTo({bearing:0,duration:600}));
-  $('viewModeButton').addEventListener('click',()=>{state.is3D=!state.is3D;if(state.is3D&&!state.terrainUserSet){state.showTerrain=true;$('terrainToggle').checked=true;}updateMode();if(state.is3D)toast(state.showTerrain?'جار تحميل التضاريس عند الطلب — يمكن متابعة التصفح.':'منظور 3D سريع دون التضاريس بناءً على إعداداتك.');});
+  $('rotateReset').addEventListener('click',()=>state.mapReady&&state.map.easeTo({bearing:0,duration:motionDuration(600)}));
+  $('viewModeButton').addEventListener('click',()=>{state.is3D=!state.is3D;if(state.is3D&&!state.terrainUserSet){state.showTerrain=false;$('terrainToggle').checked=false;}updateMode();if(state.is3D)toast('المنظور ثلاثي الأبعاد جاهز؛ يمكنك تفعيل تضاريس الارتفاعات من التفاصيل.');});
   $('wilayaToggle').addEventListener('change',e=>{state.showWilaya=e.target.checked;renderList();renderMarkers();stopTour();});
   $('siteToggle').addEventListener('change',e=>{state.showSite=e.target.checked;renderList();renderMarkers();stopTour();});
   $('roadToggle').addEventListener('change',e=>{state.showRoads=e.target.checked;updateRoadLayer();});
