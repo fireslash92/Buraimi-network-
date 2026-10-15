@@ -59,6 +59,6 @@ async function main(){
   if(!mod)return fail(lastErr);
   window.maplibregl=mod;
   setMessage('محرك الخريطة جاهز؛ جاري قراءة حدود محافظة البريمي…');
-  try{await import('./app.js?v=5.0')}catch(e){fail(e)}
+  try{await import('./app.js?v=5.1')}catch(e){fail(e)}
 }
 main();

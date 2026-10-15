@@ -21,6 +21,13 @@
   const MASK_ID = 'buraimi-outside-hidden';
   const OUTLINE_ID = 'buraimi-governorate-border';
   const ROAD_LAYER = 'buraimi-osm-roads-emphasis';
+  const REF_ROAD_PREFIX = 'buraimi-ref-';
+  const GIS_ROAD_PREFIX = 'buraimi-gis-';
+  const GIS_ROAD_SOURCE = 'buraimi-verified-route-lines';
+  const REF_FIELDS = ['ref','route_1_ref','route_2_ref','route_3_ref','route_4_ref','route_5_ref','route_6_ref'];
+  // OpenMapTiles `transportation` has road *class* but not road `ref`.
+  // Only `transportation_name` and optional Ministry GIS lines can be safely colored by code.
+
   const BUILDINGS_ID = 'buraimi-3d-buildings';
   let BOUNDS = [[55.58,23.45],[56.28,25.05]]; // replaced by true polygon bounds before display
   const CENTER = [55.88,24.25];
@@ -52,7 +59,7 @@
   const state = {
     points: loadPoints(), selectedId:'buraimi', road:null, filter:'all', term:'', roadFilter:'all',
     showWilaya:true,showSite:true,showRoads:true,showBuildings:true,showTerrain:false,terrainUserSet:false,
-    catalogue:[],catalogueCategory:'all',catalogueTerm:'',selectedCatalogueCode:null,catalogueLoaded:false,assets:[],selectedAssetId:null,assetCategory:'all',assetRoad:'all',assetWilaya:'all',assetTerm:'',showAssets:true,assetsLoaded:false,assetTourTimer:null,
+    routeLinesLoaded:false,routeLinesLoading:false,routeMatchesSource:'osm',catalogue:[],catalogueCategory:'all',catalogueTerm:'',selectedCatalogueCode:null,catalogueLoaded:false,assets:[],selectedAssetId:null,assetCategory:'all',assetRoad:'all',assetWilaya:'all',assetTerm:'',showAssets:true,assetsLoaded:false,assetTourTimer:null,
     is3D:false, editMode:false,editingId:null, pendingCoords:null, markers:[], map:null,
     mapReady:false, styleReady:false, firstPaint:false, sourceId:null, buildingLayerIds:[], tourTimer:null, orbitTimer:null, autoIdleTimer:null, toastTimer:null, errorCount:0, boundaryGeo:null, boundaryReady:false, boundaryLoading:false
   };
@@ -258,9 +265,9 @@
     }
     if(state.road){
       const r=state.road;
-      $('detailIcon').textContent='≋';$('detailType').textContent='عنصر من شبكة OpenStreetMap';$('detailTitle').textContent=r.name||r.ref||'طريق غير مسمى';
+      $('detailIcon').textContent='≋';$('detailType').textContent=r.source==='GIS'?'مسار من ملف GIS محلي':r.source==='OSM-ref'?'طريق برمز مطابق في OpenStreetMap':'عنصر من شبكة OpenStreetMap';$('detailTitle').textContent=r.name||r.ref||'طريق غير مسمى';
       const catalogueRoad=state.catalogue.find(c=>r.ref && r.ref.split(/[;,\s]+/).some(x=>x.toUpperCase()===c.code));
-      $('detailDesc').textContent=`التصنيف في OSM: ${ROAD_LABELS[r.class]||r.class||'غير محدد'}. ${r.ref?'الرقم المرجعي في OSM: '+r.ref+'. ':''}${catalogueRoad?'الرمز نفسه وارد في المخطط الهندسي باسم «'+catalogueRoad.name_ar+'» وتصنيف «'+catalogueRoad.category+'». تطابق الرمز لا يثبت تطابق كامل المسار. ':''}هذه خصائص مسجلة في OpenStreetMap وليست تأكيدًا لملكية الطريق أو الإشراف عليه.`;
+      $('detailDesc').textContent=`التصنيف في OSM: ${ROAD_LABELS[r.class]||r.class||'غير محدد'}. ${r.ref?'الرقم المرجعي في OSM: '+r.ref+'. ':''}${catalogueRoad?'الرمز نفسه وارد في المخطط الهندسي باسم «'+catalogueRoad.name_ar+'» وتصنيف «'+catalogueRoad.category+'». تطابق الرمز لا يثبت تطابق كامل المسار. ':''}${r.source==='GIS'?'مسار مرسوم من ملف GIS إضافي ويحتاج اعتماد الجهة.':'هذا تطابق مرجعي في OpenStreetMap وليس تأكيدًا لطول الطريق الكامل أو جهة الإشراف عليه.'}`;
       $('coordinateLabel').textContent='إحداثيات نقطة الاختيار';$('detailCoordinate').textContent=`${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}`;
       $('focusButton').disabled=false;$('editActions').hidden=true;return;
     }
@@ -306,6 +313,7 @@
     if(!state.mapReady||!state.map.getLayer(ROAD_LAYER))return;
     state.map.setFilter(ROAD_LAYER,roadFilterExpression());
     state.map.setLayoutProperty(ROAD_LAYER,'visibility',state.showRoads?'visible':'none');
+    updateColorRouteLayers();
   }
   function ensureRoadLayer(){
     const layers=state.map.getStyle().layers||[];
@@ -317,9 +325,9 @@
       id:ROAD_LAYER,type:'line',source:state.sourceId,'source-layer':'transportation',
       filter:roadFilterExpression(),layout:{'line-cap':'round','line-join':'round'},
       paint:{
-        'line-color':['match',['get','class'],'motorway','#c97143','trunk','#c97143','primary','#d6963f','secondary','#55a2a3','tertiary','#69ae86','minor','#7f9470','street','#7f9470','street_limited','#7f9470','service','#aeb094','track','#a9a16a','path','#a9a16a','#a9a16a'],
+        'line-color':'#85928d',
         'line-width':['interpolate',['linear'],['zoom'],6,1.0,9,2.3,12,4.2,15,6.2,18,9],
-        'line-opacity':0.86
+        'line-opacity':0.66
       }
     };
     const firstLabels=layers.find(l=>l.type==='symbol'&&l.id&&/label|place|name/i.test(l.id));
@@ -373,10 +381,16 @@
       if(found.length){selectAsset(found[0].properties.id,true);return;}
     }
     if(!state.showRoads||!state.map.getLayer(ROAD_LAYER))return;
-    const hits=state.map.queryRenderedFeatures(e.point,{layers:[ROAD_LAYER]});
+    const activeLayers=[...ROUTE_CATS.map(routeCatLayer).filter(id=>state.map.getLayer(id)),...(state.routeLinesLoaded?ROUTE_CATS.map(gisCatLayer).filter(id=>state.map.getLayer(id)):[])];
+    const matched=activeLayers.length?state.map.queryRenderedFeatures(e.point,{layers:activeLayers}):[];
+    const hits=matched.length?matched:state.map.queryRenderedFeatures(e.point,{layers:[ROAD_LAYER]});
     if(!hits.length)return;
     const props=hits[0].properties||{};
-    state.selectedAssetId=null;state.road={name:String(props.name_ar||props['name:ar']||props.name||'').slice(0,100),ref:String(props.ref||'').slice(0,60),class:String(props.class||'').slice(0,40),lat:e.lngLat.lat,lng:e.lngLat.lng};
+    const code=matched.length?(extractRoadCode(props)||''):'';
+    const row=state.catalogue.find(r=>r.code===code);
+    state.selectedAssetId=null;
+    state.road={name:row?.name_ar||String(props.name_ar||props['name:ar']||props.name||'').slice(0,100),ref:code||String(props.ref||'').slice(0,60),class:String(props.class||'').slice(0,40),lat:e.lngLat.lat,lng:e.lngLat.lng,source:matched.length?(String(hits[0]?.layer?.id||'').startsWith(GIS_ROAD_PREFIX)?'GIS':'OSM-ref'):'OSM-class'};
+    if(row){state.selectedCatalogueCode=row.code;renderCatalogue();renderCatalogueSelection();updateSelectedRoadLayers();}
     renderList();renderDetail();renderMarkers();openDrawer('detail');
   }
   function mapError(e){
@@ -400,6 +414,7 @@
     // Compile and add 3D building layers only when the visitor switches to 3D.
     drawGovernorateOnly();
     updateAssetMap();
+    try{ensureColorRouteLayers();}catch(err){console.warn('Reference road colors:',err);}
     // Intentionally DO NOT call resetMap() here: it starts a second wave of tile
     // requests while the initial map tiles are still downloading.
   }
@@ -497,8 +512,125 @@
   }
   // v5: catalogue transcribed from the engineer-provided image. NO route geometries are inferred.
   const CATALOGUE_URL = 'assets/road-catalog.json';
-  const CATALOGUE_COLORS = {'وطني':'#83ec7f','شرياني':'#345cf1','ثانوي':'#efad31','موزع':'#87472e','محلي':'#20a6d3'};
+  const CATALOGUE_COLORS = {'وطني':'#7AEA7A','شرياني':'#233EA5','ثانوي':'#F8A123','موزع':'#69402B','محلي':'#1AB3DC'};
   const ROUTE_CATS = ['وطني','شرياني','ثانوي','موزع','محلي'];
+  const GIS_ROAD_URL = 'assets/road-routes.geojson'; // optional, never invent geometries
+  const routeCatLayer = cat => REF_ROAD_PREFIX+({وطني:'N',شرياني:'A',ثانوي:'S',موزع:'D',محلي:'L'}[cat]);
+  const gisCatLayer = cat => GIS_ROAD_PREFIX+({وطني:'N',شرياني:'A',ثانوي:'S',موزع:'D',محلي:'L'}[cat]);
+  const codesForCat = cat => state.catalogue.filter(r=>r.category===cat).map(r=>r.code);
+  // The OSM tile name layer offers ref and route_1_ref…route_6_ref.
+  // An exact match prevents N6 from incorrectly matching N60.
+  const refCodeExpr = code => ['any',...REF_FIELDS.map(field=>[
+    'match',['upcase',['to-string',['coalesce',['get',field],'']]],
+    [code,code[0]+' '+code.slice(1)],true,false
+  ])];
+  const categoryRefExpr = cat => ['any',...codesForCat(cat).map(refCodeExpr)];
+  function extractRoadCode(props){
+    const known=new Set(state.catalogue.map(r=>r.code));
+    for(const field of ['road_code',...REF_FIELDS]){
+      for(const piece of String(props[field]||'').toUpperCase().split(/[;,|\/]+/)){
+        const code=piece.trim().replace(/^([NSADL])\s+(\d+)$/,'$1$2');
+        if(known.has(code))return code;
+      }
+    }
+    return '';
+  }
+  function roadsBeforeMask(){return state.map.getLayer(MASK_ID)?MASK_ID:undefined;}
+  function addColoredRouteLayer(id,source,sourceLayer,filter,color){
+    if(state.map.getLayer(id))return;
+    const base={id,type:'line',source,filter,layout:{'line-cap':'round','line-join':'round',visibility:'visible'},
+      paint:{'line-color':color,'line-opacity':0.98,'line-width':['interpolate',['linear'],['zoom'],7,2.5,9,3.6,12,6,15,9,17,12]}}; // outline is drawn in separate halo layer below
+    if(sourceLayer)base['source-layer']=sourceLayer;
+    const halo={...base,id:id+'-halo',paint:{'line-color':'#fffdf6','line-opacity':0.90,
+      'line-width':['interpolate',['linear'],['zoom'],7,4,9,6,12,9,15,12,17,15]}};
+    state.map.addLayer(halo,roadsBeforeMask());state.map.addLayer(base,roadsBeforeMask());
+  }
+  function ensureColorRouteLayers(){
+    if(!state.styleReady||!state.map||!state.catalogue.length)return;
+    const style=state.map.getStyle();
+    const nameLayer=(style.layers||[]).find(l=>l['source-layer']==='transportation_name');
+    if(!nameLayer){$('roadsHint').textContent='المصدر المفتوح لا يضم طبقة أسماء طرق قابلة للمطابقة';return;}
+    for(const cat of ROUTE_CATS){
+      const codes=codesForCat(cat);if(!codes.length)continue;
+      addColoredRouteLayer(routeCatLayer(cat),nameLayer.source,'transportation_name',categoryRefExpr(cat),CATALOGUE_COLORS[cat]);
+    }
+    updateColorRouteLayers();ensureSelectedRoadLayers();
+  }
+  function updateColorRouteLayers(){
+    if(!state.map||!state.styleReady)return;
+    for(const cat of ROUTE_CATS){
+      const show=state.showRoads && (state.catalogueCategory==='all'||state.catalogueCategory===cat);
+      for(const id of [routeCatLayer(cat),routeCatLayer(cat)+'-halo'])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',show?'visible':'none');
+      const showGIS=state.showRoads && state.routeLinesLoaded && (state.catalogueCategory==='all'||state.catalogueCategory===cat);
+      for(const id of [gisCatLayer(cat),gisCatLayer(cat)+'-halo'])if(state.map.getLayer(id))state.map.setLayoutProperty(id,'visibility',showGIS?'visible':'none');
+    }
+    updateSelectedRoadLayers();
+  }
+  function updateSelectedRoadLayers(){
+    if(!state.map||!state.styleReady)return;
+    const code=state.selectedCatalogueCode;
+    const layers=['buraimi-selected-osm','buraimi-selected-gis'];
+    for(const id of layers){
+      if(!state.map.getLayer(id))continue;
+      const isGIS=id.endsWith('gis');
+      const visible=Boolean(code && state.showRoads && (!isGIS||state.routeLinesLoaded) &&
+         (state.catalogueCategory==='all'||state.catalogue.find(r=>r.code===code)?.category===state.catalogueCategory));
+      state.map.setLayoutProperty(id,'visibility',visible?'visible':'none');
+      if(visible){state.map.setFilter(id,isGIS?['==',['get','road_code'],code]:refCodeExpr(code));state.map.setPaintProperty(id,'line-color',CATALOGUE_COLORS[state.catalogue.find(r=>r.code===code)?.category]||'#7AEA7A');}
+    }
+  }
+  function ensureSelectedRoadLayers(){
+    if(!state.map||!state.styleReady)return;
+    const layout={visibility:'none','line-cap':'round','line-join':'round'};
+    const paint={'line-color':'#7AEA7A','line-opacity':0.89,'line-width':['interpolate',['linear'],['zoom'],7,5,10,10,14,16]};
+    const nameLayer=(state.map.getStyle().layers||[]).find(l=>l['source-layer']==='transportation_name');
+    if(nameLayer&&!state.map.getLayer('buraimi-selected-osm'))state.map.addLayer({id:'buraimi-selected-osm',type:'line',source:nameLayer.source,'source-layer':'transportation_name',filter:['==',['get','ref'],'__none__'],layout,paint},roadsBeforeMask());
+    if(state.map.getSource(GIS_ROAD_SOURCE)&&!state.map.getLayer('buraimi-selected-gis'))state.map.addLayer({id:'buraimi-selected-gis',type:'line',source:GIS_ROAD_SOURCE,filter:['==',['get','road_code'],'__none__'],layout,paint},roadsBeforeMask());
+    updateSelectedRoadLayers();
+  }
+  async function loadGISRoutes(){
+    if(state.routeLinesLoading)return;state.routeLinesLoading=true;
+    try{
+      const response=await fetch(GIS_ROAD_URL,{cache:'no-store'});
+      if(response.status===404)return; // expected; engineering lines were not in the image or KMZ
+      if(!response.ok)throw Error('HTTP '+response.status);
+      const doc=await response.json();
+      if(doc?.type!=='FeatureCollection'||!Array.isArray(doc.features)||doc.features.length>6000)throw Error('صيغة GeoJSON غير صالحة');
+      const categories=new Map(state.catalogue.map(r=>[r.code,r.category]));
+      const features=[];
+      for(const f of doc.features){
+        const code=String(f?.properties?.road_code||f?.properties?.code||f?.properties?.ref||'').trim().toUpperCase();
+        if(!categories.has(code))continue;
+        if(!['LineString','MultiLineString'].includes(f.geometry?.type))continue;
+        const lines=f.geometry.type==='LineString'?[f.geometry.coordinates]:f.geometry.coordinates;
+        if(!Array.isArray(lines)||!lines.length||lines.some(line=>!Array.isArray(line)||line.length<2||line.some(p=>!Array.isArray(p)||p.length<2||!Number.isFinite(p[0])||!Number.isFinite(p[1])||p[0]<54||p[0]>58||p[1]<22||p[1]>27)))continue;
+        features.push({type:'Feature',properties:{road_code:code,category:categories.get(code)},geometry:f.geometry});
+      }
+      if(!features.length)throw Error('لا توجد مسارات خطية مطابقة لرموز دليل الطرق');
+      // Road lines are never inferred from point inventories or the scanned engineer's drawing.
+      const result={type:'FeatureCollection',features};
+      const install=()=>{
+        if(!state.styleReady||!state.map)return false;
+        if(!state.map.getSource(GIS_ROAD_SOURCE))state.map.addSource(GIS_ROAD_SOURCE,{type:'geojson',data:result});
+        for(const cat of ROUTE_CATS){
+          addColoredRouteLayer(gisCatLayer(cat),GIS_ROAD_SOURCE,null,['==',['get','category'],cat],CATALOGUE_COLORS[cat]);
+        }
+        state.routeLinesLoaded=true;state.routeMatchesSource='gis';
+        ensureSelectedRoadLayers();updateColorRouteLayers();
+        $('routeColorSource').textContent='المسارات: ملف GIS المحلي';
+        $('routeColorNote').textContent='المسارات الملونة من ملف road-routes.geojson؛ راجع اعتمادها الإداري قبل النشر الرسمي.';
+        return true;
+      };
+      if(!install())state.map?.once('style.load',install);
+    }catch(err){console.warn('Optional GIS road route file:',err);$('routeColorNote').textContent='ملف المسارات المضاف غير صالح؛ لا يزال التلوين مقتصرًا على رموز OSM المتاحة.';}
+  }
+  function setCatalogueCategory(cat){
+    if(cat!=='all'&&!ROUTE_CATS.includes(cat))return;
+    state.catalogueCategory=cat;
+    $$('#catalogueFilters button').forEach(b=>{const active=b.dataset.catalogueCategory===cat;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+    $$('#roadColorLegend button[data-route-cat]').forEach(b=>{const active=cat==='all'||b.dataset.routeCat===cat;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+    updateColorRouteLayers();renderCatalogue();
+  }
   const catalogueMatches = () => state.catalogue.filter(r=>
     (state.catalogueCategory==='all'||r.category===state.catalogueCategory)
     && (!state.catalogueTerm||[r.code,r.name_ar,r.category].some(x=>String(x).toLocaleLowerCase('ar').includes(state.catalogueTerm.toLocaleLowerCase('ar'))))
@@ -521,7 +653,7 @@
       const body=element('span','catalogue-item-body');body.append(element('strong','',r.name_ar),element('small','',`تصنيف: ${r.category}`));
       const matching=roadAssetMatches(r);
       const meta=element('span','catalogue-count',r.kmz_name_conflict?'!':String(matching.length));meta.title=r.kmz_name_conflict?'اختلاف في اسم الطريق بين المصدرين':`${matching.length} منشأة في KMZ بنفس الرمز`;
-      b.append(chip,body,meta);b.addEventListener('click',()=>{state.selectedCatalogueCode=r.code;renderCatalogue();renderCatalogueSelection();});list.append(b);
+      b.append(chip,body,meta);b.addEventListener('click',()=>{state.selectedCatalogueCode=r.code;renderCatalogue();renderCatalogueSelection();updateSelectedRoadLayers();});list.append(b);
     }
   }
   function renderCatalogueSelection(){
@@ -539,7 +671,7 @@
       const btn=element('button','primary-btn catalogue-jump',`استعراض ${ar(matching.length)} من المكونات المرتبطة بالرمز`);btn.type='button';
       btn.addEventListener('click',()=>focusOfficialRoadAssets(road));area.append(btn);
     }else{area.append(element('p','catalogue-note','لن يجري الربط الآلي بمواقع KMZ حتى يُراجَع اختلاف التسمية من المهندسين.'));}
-    area.append(element('small','catalogue-footnote','التصنيف المرجعي مأخوذ من جدول المخطط. لا يمثّل هذا السجل خط طريق GIS صالحًا للرسم فوق الخريطة.'));
+    area.append(element('small','catalogue-footnote',state.routeLinesLoaded?'قد تتوفر خطوط GIS من ملف road-routes.geojson؛ تُعرض فقط الطرق التي لها خطوط فعلية.':'يُلوَّن الطريق على الخريطة فقط عند مطابقة رمزه في OSM. بعض الطرق لا تظهر بألوان تصنيفها حتى تتوفر ملفات مسارات GIS.'));
   }
   function focusOfficialRoadAssets(road){
     if(!road.kmz_link_verified){toast('تعذّر ربط الطريق بالمنشآت إلى حين توثيق التسمية.');return;}
@@ -562,6 +694,8 @@
       if(!Array.isArray(data.roads)||data.roads.length>1000||data.roads.some(r=>!/^[NSADL]\d{1,5}$/.test(r.code)||!r.name_ar||!ROUTE_CATS.includes(r.category)))throw Error('ملف الدليل غير صالح');
       state.catalogue=data.roads;state.catalogueLoaded=true;
       $('catalogueTotal').textContent=ar(data.roads.length);renderCatalogue();
+      try{ensureColorRouteLayers();ensureSelectedRoadLayers();}catch(error){console.warn('Road refs overlay:',error);}
+      loadGISRoutes();
     }catch(err){console.warn('Cannot load official road catalogue',err);state.catalogueLoaded=true;
       $('catalogueList').replaceChildren(element('p','empty-results','تعذّر تحميل assets/road-catalog.json. تأكد من رفع الملف داخل مجلد assets.'));
     }
@@ -569,11 +703,14 @@
   $('mobileCatalogue').addEventListener('click',()=>toggleDrawer('catalogue'));
   $('closeCatalogue').addEventListener('click',()=>closeDrawer('catalogue'));
   $('catalogueSearch').addEventListener('input',e=>{state.catalogueTerm=e.target.value.trim();renderCatalogue();});
-  $$('#catalogueFilters button').forEach(b=>b.addEventListener('click',()=>{
-    state.catalogueCategory=b.dataset.catalogueCategory;
-    $$('#catalogueFilters button').forEach(c=>{const active=c===b;c.classList.toggle('active',active);c.setAttribute('aria-pressed',String(active));});
-    renderCatalogue();
-  }));
+  $$('#catalogueFilters button').forEach(b=>b.addEventListener('click',()=>setCatalogueCategory(b.dataset.catalogueCategory)));
+  $$('#roadColorLegend button[data-route-cat]').forEach(b=>b.addEventListener('click',()=>setCatalogueCategory(state.catalogueCategory===b.dataset.routeCat?'all':b.dataset.routeCat)));
+  $('roadColorReset').addEventListener('click',()=>setCatalogueCategory('all'));
+  $('roadColorCollapse').addEventListener('click',()=>{
+    const isCollapsed=$('roadColorLegend').classList.toggle('collapsed');
+    $('roadColorCollapse').setAttribute('aria-expanded',String(!isCollapsed));
+    $('roadColorCollapse').textContent=isCollapsed?'+':'−';
+  });
 
   // Point inventory extracted from the user-supplied KMZ (no route line geometries in source).
   const ASSET_URL='assets/road-components.geojson';
