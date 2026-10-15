@@ -9,10 +9,8 @@
   <link rel="icon" href="assets/road-icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="assets/styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.js" defer></script>
-  <script src="assets/app.js" defer></script>
+  <script type="module" src="assets/bootstrap.js?v=2.4"></script>
 </head>
 <body>
 <div id="appShell" class="app-shell">
@@ -41,8 +39,8 @@
         <div class="map-soft-overlay" aria-hidden="true"></div>
         <div id="mapLoading" class="map-loading" role="status" aria-live="polite">
           <div class="loading-ring" aria-hidden="true"></div>
-          <strong id="loadingTitle">جاري تحميل حدود محافظة البريمي</strong>
-          <span id="loadingSub">يتم تحديد نطاق المحافظة قبل إظهار الخريطة، ثم تحميل شبكة الطرق...</span>
+          <strong id="loadingTitle">تهيئة محرك خريطة محافظة البريمي</strong>
+          <span id="loadingSub">يتم تجهيز الخريطة ثم تحميل حدود المحافظة وشبكة الطرق...</span>
           <button type="button" id="retryButton" class="outline-btn" hidden>إعادة المحاولة</button>
         </div>
         <div class="map-topbar glass-box">
@@ -110,7 +108,7 @@
       </div>
     </section>
   </main>
-  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٢٫٢ · حدود البريمي والعربية</span></footer>
+  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٢٫٤ · نشر مباشر دون Actions</span></footer>
 </div>
 <dialog id="locationDialog" class="edit-dialog" aria-labelledby="dialogTitle">
   <form id="locationForm" method="dialog"><div class="dialog-head"><div><span class="micro-label">إدارة المواقع</span><h2 id="dialogTitle">إضافة موقع</h2></div><button id="dialogClose" type="button" aria-label="إغلاق" class="dialog-close">×</button></div>
