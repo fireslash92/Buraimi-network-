@@ -16,8 +16,8 @@
   const DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   // Governorate boundary vector dataset (derived from GADM 3.6; remote read-only source).
   // The map stays invisible if this data cannot be loaded. It must never show neighbouring UAE tiles.
-  const BOUNDARY_SOURCES = ['assets/buraimi-boundary.geojson','https://raw.githubusercontent.com/NasserAlbusaidi/oman-data-bank/main/public/oman-governorates.json'];
-  const BOUNDARY_CACHE = 'buraimi-boundary-v2.3';
+  const BOUNDARY_SOURCES = ['assets/buraimi-boundary.geojson','https://raw.githubusercontent.com/NasserAlbusaidi/oman-data-bank/main/public/oman-governorates.json','https://cdn.jsdelivr.net/gh/NasserAlbusaidi/oman-data-bank@main/public/oman-governorates.json'];
+  const BOUNDARY_CACHE = 'buraimi-boundary-v2.4';
   const MASK_ID = 'buraimi-outside-hidden';
   const OUTLINE_ID = 'buraimi-governorate-border';
   const ROAD_LAYER = 'buraimi-osm-roads-emphasis';
