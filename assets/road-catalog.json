@@ -1,0 +1,194 @@
+{
+  "version": "5.0",
+  "dataset": "road-name-classification-catalog",
+  "area": "محافظة البريمي",
+  "source_type": "user_supplied_scanned_engineering_map",
+  "source_note": "أسماء وأرقام وتصنيفات مستخرجة من جدول المخطط المقدم. ليست خطوط طرق GIS أو إحداثيات. الصورة الأصلية مذكور عليها قيد استخدام داخل الوزارة؛ لم تُنشر الصورة ضمن التطبيق.",
+  "class_colors": {
+    "وطني": "#83ec7f",
+    "شرياني": "#345cf1",
+    "ثانوي": "#efad31",
+    "موزع": "#87472e",
+    "محلي": "#20a6d3"
+  },
+  "roads": [
+    {
+      "code": "N2",
+      "name_ar": "طريق السلطان ثويني بن سعيد",
+      "category": "وطني",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_name_note": "بيانات KMZ تستخدم لهذا الرمز وصف مسار أطول: «دوار برج الصحوة - نزوى - عبري - حفيت». يجب التحقق من التطابق التفصيلي بين المسميين.",
+      "kmz_link_verified": false
+    },
+    {
+      "code": "N6",
+      "name_ar": "صحار - البريمي",
+      "category": "وطني",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "N7",
+      "name_ar": "العقر - الوجاجة - الروضة",
+      "category": "وطني",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "A3",
+      "name_ar": "البريمي - محضة - الروضة",
+      "category": "شرياني",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "A4",
+      "name_ar": "البريمي - حفيت",
+      "category": "شرياني",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "S11",
+      "name_ar": "حميضة - محضة",
+      "category": "ثانوي",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "S12",
+      "name_ar": "طريق البريمي",
+      "category": "ثانوي",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "S13",
+      "name_ar": "طريق الخريبة",
+      "category": "ثانوي",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D600",
+      "name_ar": "طريق محضة - كحل",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D601",
+      "name_ar": "طريق محضة - أبو بادي",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D602",
+      "name_ar": "طريق السعف - الشويهة",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D603",
+      "name_ar": "طريق العقيدة - المصيدة",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D604",
+      "name_ar": "طريق كتنة - الدقيق - الطالعي",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_name_conflict": "بيانات KMZ تسمي الرمز D604 «طريق السعف - الشويهه»، بينما المخطط الهندسي يسمي D604 «طريق كتنة - الدقيق - الطالعي» ويسمي D602 «طريق السعف - الشويهة». يحتاج الرمز إلى تدقيق قبل الربط بينهما.",
+      "kmz_link_verified": false
+    },
+    {
+      "code": "D605",
+      "name_ar": "طريق الجامع",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D606",
+      "name_ar": "طريق حلة السور",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D607",
+      "name_ar": "طريق وسط المدينة",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D608",
+      "name_ar": "طريق القلعة",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D609",
+      "name_ar": "طريق أرض الجو",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "D612",
+      "name_ar": "طريق ينقل - وادي صاع",
+      "category": "موزع",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "L604",
+      "name_ar": "طريق عيول",
+      "category": "محلي",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "L605",
+      "name_ar": "طريق محضة - الجريف",
+      "category": "محلي",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    },
+    {
+      "code": "L606",
+      "name_ar": "طريق الخريبة",
+      "category": "محلي",
+      "geometry_available": false,
+      "source": "مخطط توضيحي شبكة الطرق الأسفلتية بمحافظة البريمي - صورة مرفقة من المستخدم",
+      "kmz_link_verified": true
+    }
+  ]
+}

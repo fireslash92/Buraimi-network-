@@ -52,7 +52,7 @@
   const state = {
     points: loadPoints(), selectedId:'buraimi', road:null, filter:'all', term:'', roadFilter:'all',
     showWilaya:true,showSite:true,showRoads:true,showBuildings:true,showTerrain:false,terrainUserSet:false,
-    assets:[],selectedAssetId:null,assetCategory:'all',assetRoad:'all',assetWilaya:'all',assetTerm:'',showAssets:true,assetsLoaded:false,assetTourTimer:null,
+    catalogue:[],catalogueCategory:'all',catalogueTerm:'',selectedCatalogueCode:null,catalogueLoaded:false,assets:[],selectedAssetId:null,assetCategory:'all',assetRoad:'all',assetWilaya:'all',assetTerm:'',showAssets:true,assetsLoaded:false,assetTourTimer:null,
     is3D:false, editMode:false,editingId:null, pendingCoords:null, markers:[], map:null,
     mapReady:false, styleReady:false, firstPaint:false, sourceId:null, buildingLayerIds:[], tourTimer:null, orbitTimer:null, autoIdleTimer:null, toastTimer:null, errorCount:0, boundaryGeo:null, boundaryReady:false, boundaryLoading:false
   };
@@ -259,7 +259,8 @@
     if(state.road){
       const r=state.road;
       $('detailIcon').textContent='≋';$('detailType').textContent='عنصر من شبكة OpenStreetMap';$('detailTitle').textContent=r.name||r.ref||'طريق غير مسمى';
-      $('detailDesc').textContent=`التصنيف: ${ROAD_LABELS[r.class]||r.class||'غير محدد'}. ${r.ref?'الرقم المرجعي: '+r.ref+'. ':''}هذه خصائص مسجلة في OpenStreetMap وليست تأكيدًا لملكية الطريق أو الإشراف عليه.`;
+      const catalogueRoad=state.catalogue.find(c=>r.ref && r.ref.split(/[;,\s]+/).some(x=>x.toUpperCase()===c.code));
+      $('detailDesc').textContent=`التصنيف في OSM: ${ROAD_LABELS[r.class]||r.class||'غير محدد'}. ${r.ref?'الرقم المرجعي في OSM: '+r.ref+'. ':''}${catalogueRoad?'الرمز نفسه وارد في المخطط الهندسي باسم «'+catalogueRoad.name_ar+'» وتصنيف «'+catalogueRoad.category+'». تطابق الرمز لا يثبت تطابق كامل المسار. ':''}هذه خصائص مسجلة في OpenStreetMap وليست تأكيدًا لملكية الطريق أو الإشراف عليه.`;
       $('coordinateLabel').textContent='إحداثيات نقطة الاختيار';$('detailCoordinate').textContent=`${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}`;
       $('focusButton').disabled=false;$('editActions').hidden=true;return;
     }
@@ -450,9 +451,9 @@
       },16000);
     }catch(err){console.error(err);setMapError('تعذر بدء محرك الخرائط. يُنصح باستخدام Chrome أو Edge أو Safari حديث مع WebGL.');}
   }
-  function openDrawer(which){closeFilters();for(const [name,button] of [['browse','mobileBrowse'],['assets','mobileAssets'],['detail','mobileDetail']]){const open=name===which;$(name==='browse'?'browsePanel':name==='assets'?'assetsPanel':'detailPanel').classList.toggle('open',open);$(button).classList.toggle('active',open);$(button).setAttribute('aria-expanded',String(open));}}
-  function closeDrawer(which){const name=which==='browse'?'browsePanel':which==='assets'?'assetsPanel':'detailPanel',toggle=which==='browse'?'mobileBrowse':which==='assets'?'mobileAssets':'mobileDetail';$(name).classList.remove('open');$(toggle).classList.remove('active');$(toggle).setAttribute('aria-expanded','false');}
-  function toggleDrawer(which){const target=which==='browse'?'browsePanel':which==='assets'?'assetsPanel':'detailPanel';if($(target).classList.contains('open'))closeDrawer(which);else openDrawer(which);}
+  function openDrawer(which){closeFilters();for(const [name,button] of [['browse','mobileBrowse'],['assets','mobileAssets'],['catalogue','mobileCatalogue'],['detail','mobileDetail']]){const open=name===which;$(name==='browse'?'browsePanel':name==='assets'?'assetsPanel':name==='catalogue'?'cataloguePanel':'detailPanel').classList.toggle('open',open);$(button).classList.toggle('active',open);$(button).setAttribute('aria-expanded',String(open));}}
+  function closeDrawer(which){const name=which==='browse'?'browsePanel':which==='assets'?'assetsPanel':which==='catalogue'?'cataloguePanel':'detailPanel',toggle=which==='browse'?'mobileBrowse':which==='assets'?'mobileAssets':which==='catalogue'?'mobileCatalogue':'mobileDetail';$(name).classList.remove('open');$(toggle).classList.remove('active');$(toggle).setAttribute('aria-expanded','false');}
+  function toggleDrawer(which){const target=which==='browse'?'browsePanel':which==='assets'?'assetsPanel':which==='catalogue'?'cataloguePanel':'detailPanel';if($(target).classList.contains('open'))closeDrawer(which);else openDrawer(which);}
   function toggleEdit(){
     if(!adminAvailable){toast('افتح نسخة الإدارة عبر ?admin=1 على جهاز المشرف.');return;}
     stopTour();state.editMode=!state.editMode;
@@ -494,6 +495,86 @@
       state.points=verified;state.selectedId=verified[0].id;state.road=null;persist();renderList();renderDetail();renderMarkers();resetMap();toast('تم استيراد المواقع. أي مواضع قديمة على الصورة بلا GPS ستبقى دون علامات.');
     }catch(err){toast('ملف JSON غير صالح. تحقق من وجود قائمة locations.');}
   }
+  // v5: catalogue transcribed from the engineer-provided image. NO route geometries are inferred.
+  const CATALOGUE_URL = 'assets/road-catalog.json';
+  const CATALOGUE_COLORS = {'وطني':'#83ec7f','شرياني':'#345cf1','ثانوي':'#efad31','موزع':'#87472e','محلي':'#20a6d3'};
+  const ROUTE_CATS = ['وطني','شرياني','ثانوي','موزع','محلي'];
+  const catalogueMatches = () => state.catalogue.filter(r=>
+    (state.catalogueCategory==='all'||r.category===state.catalogueCategory)
+    && (!state.catalogueTerm||[r.code,r.name_ar,r.category].some(x=>String(x).toLocaleLowerCase('ar').includes(state.catalogueTerm.toLocaleLowerCase('ar'))))
+  );
+  function roadAssetMatches(road){
+    return state.assets.filter(f=>f.properties?.road_code===road.code);
+  }
+  function renderCatalogue(){
+    const list=$('catalogueList');list.replaceChildren();
+    const rows=catalogueMatches();$('catalogueCount').textContent=ar(rows.length);
+    const counts=$('catalogueStats');counts.replaceChildren();
+    for(const cat of ROUTE_CATS){const box=element('div','catalogue-stat');const num=state.catalogue.filter(r=>r.category===cat).length;
+      const line=element('span','catalogue-stat-mark');line.style.background=CATALOGUE_COLORS[cat];
+      box.append(line,element('strong','',ar(num)),element('small','',cat));counts.append(box);}
+    if(!state.catalogueLoaded){list.append(element('p','empty-results','يجري تحميل دليل الطرق…'));return;}
+    if(!rows.length){list.append(element('p','empty-results','لا توجد طرق تطابق البحث.'));return;}
+    for(const r of rows){
+      const b=element('button','catalogue-item'+(state.selectedCatalogueCode===r.code?' selected':''));b.type='button';b.dataset.code=r.code;b.setAttribute('aria-pressed',String(state.selectedCatalogueCode===r.code));b.setAttribute('aria-label',`${r.code}، ${r.name_ar}، ${r.category}`);
+      const chip=element('span','catalogue-code',r.code);chip.style.borderColor=CATALOGUE_COLORS[r.category];
+      const body=element('span','catalogue-item-body');body.append(element('strong','',r.name_ar),element('small','',`تصنيف: ${r.category}`));
+      const matching=roadAssetMatches(r);
+      const meta=element('span','catalogue-count',r.kmz_name_conflict?'!':String(matching.length));meta.title=r.kmz_name_conflict?'اختلاف في اسم الطريق بين المصدرين':`${matching.length} منشأة في KMZ بنفس الرمز`;
+      b.append(chip,body,meta);b.addEventListener('click',()=>{state.selectedCatalogueCode=r.code;renderCatalogue();renderCatalogueSelection();});list.append(b);
+    }
+  }
+  function renderCatalogueSelection(){
+    const area=$('catalogueSelected');area.replaceChildren();
+    const road=state.catalogue.find(r=>r.code===state.selectedCatalogueCode);
+    if(!road){area.hidden=true;return;}
+    area.hidden=false;
+    const heading=element('div','catalogue-selected-head');heading.append(element('strong','',road.code+' · '+road.name_ar),element('span','',road.category));area.append(heading);
+    const matching=roadAssetMatches(road);
+    area.append(element('p','catalogue-matched',`عدد المواقع الهندسية التي تحمل هذا الرمز في KMZ: ${ar(matching.length)}.`));
+    if(road.kmz_name_conflict){area.append(element('p','catalogue-warning',road.kmz_name_conflict));}
+    else if(road.kmz_name_note){area.append(element('p','catalogue-note',road.kmz_name_note));}
+    if(!matching.length){area.append(element('p','catalogue-note','لم تتضمن بيانات KMZ نقطة منشأة لهذا الرقم. المخطط المصوّر لا يقدم خط سير رقميًا يمكن الانتقال إليه بدقة.'));}
+    else if(road.kmz_link_verified!==false){
+      const btn=element('button','primary-btn catalogue-jump',`استعراض ${ar(matching.length)} من المكونات المرتبطة بالرمز`);btn.type='button';
+      btn.addEventListener('click',()=>focusOfficialRoadAssets(road));area.append(btn);
+    }else{area.append(element('p','catalogue-note','لن يجري الربط الآلي بمواقع KMZ حتى يُراجَع اختلاف التسمية من المهندسين.'));}
+    area.append(element('small','catalogue-footnote','التصنيف المرجعي مأخوذ من جدول المخطط. لا يمثّل هذا السجل خط طريق GIS صالحًا للرسم فوق الخريطة.'));
+  }
+  function focusOfficialRoadAssets(road){
+    if(!road.kmz_link_verified){toast('تعذّر ربط الطريق بالمنشآت إلى حين توثيق التسمية.');return;}
+    const matches=roadAssetMatches(road);
+    state.assetCategory='all';state.assetRoad=road.code;state.assetWilaya='all';state.assetTerm='';
+    $('assetsSearch').value='';$('assetsRoad').value=road.code;$('assetsWilaya').value='all';
+    $$('#assetsCategories button').forEach(b=>{const active=b.dataset.assetCategory==='all';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+    renderAssets();updateAssetMap();stopAssetTour();stopOrbit();openDrawer('assets');
+    const allowed=matches.filter(f=>state.boundaryReady&&pointInGeometry(f.geometry.coordinates[0],f.geometry.coordinates[1],state.boundaryGeo?.geometry));
+    if(!allowed.length){toast('تظهر المكونات في القائمة؛ تعذر تحديد مواقعها على الخريطة قبل تحميل الحدود.');return;}
+    if(allowed.length===1){state.map.flyTo({center:allowed[0].geometry.coordinates,zoom:12.8,pitch:state.is3D?52:0,duration:motionDuration(1300)});return;}
+    const coords=allowed.map(f=>f.geometry.coordinates);let xmin=Infinity,ymin=Infinity,xmax=-Infinity,ymax=-Infinity;
+    for(const [x,y] of coords){xmin=Math.min(xmin,x);xmax=Math.max(xmax,x);ymin=Math.min(ymin,y);ymax=Math.max(ymax,y);}
+    state.map.fitBounds([[xmin,ymin],[xmax,ymax]],{padding:innerWidth<800?90:180,maxZoom:12.5,duration:motionDuration(1500),pitch:state.is3D?40:0});
+  }
+  async function loadCatalogue(){
+    try{
+      const response=await fetch(CATALOGUE_URL,{cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);
+      const data=await response.json();
+      if(!Array.isArray(data.roads)||data.roads.length>1000||data.roads.some(r=>!/^[NSADL]\d{1,5}$/.test(r.code)||!r.name_ar||!ROUTE_CATS.includes(r.category)))throw Error('ملف الدليل غير صالح');
+      state.catalogue=data.roads;state.catalogueLoaded=true;
+      $('catalogueTotal').textContent=ar(data.roads.length);renderCatalogue();
+    }catch(err){console.warn('Cannot load official road catalogue',err);state.catalogueLoaded=true;
+      $('catalogueList').replaceChildren(element('p','empty-results','تعذّر تحميل assets/road-catalog.json. تأكد من رفع الملف داخل مجلد assets.'));
+    }
+  }
+  $('mobileCatalogue').addEventListener('click',()=>toggleDrawer('catalogue'));
+  $('closeCatalogue').addEventListener('click',()=>closeDrawer('catalogue'));
+  $('catalogueSearch').addEventListener('input',e=>{state.catalogueTerm=e.target.value.trim();renderCatalogue();});
+  $$('#catalogueFilters button').forEach(b=>b.addEventListener('click',()=>{
+    state.catalogueCategory=b.dataset.catalogueCategory;
+    $$('#catalogueFilters button').forEach(c=>{const active=c===b;c.classList.toggle('active',active);c.setAttribute('aria-pressed',String(active));});
+    renderCatalogue();
+  }));
+
   // Point inventory extracted from the user-supplied KMZ (no route line geometries in source).
   const ASSET_URL='assets/road-components.geojson';
   const ASSET_ICONS={'جسر وادي':'≈','ممر سفلي':'↓','ممر علوي':'↑','نفق مشاه':'↔'};
@@ -524,7 +605,7 @@
       const data=await r.json();
       if(data.type!=='FeatureCollection'||!Array.isArray(data.features)||data.features.length>5000)throw Error('invalid feature collection');
       state.assets=data.features.filter(f=>f.type==='Feature'&&f.geometry?.type==='Point'&&Array.isArray(f.geometry.coordinates)&&f.geometry.coordinates.length>=2&&f.geometry.coordinates.every(Number.isFinite)&&f.properties?.id&&f.properties?.category);
-      state.assetsLoaded=true;
+      state.assetsLoaded=true;renderCatalogue();renderCatalogueSelection();
       initializeAssetFilters();renderAssets();updateAssetMap();
       $('assetsBadge').textContent=ar(state.assets.length);
     }catch(error){console.error('Asset KMZ GeoJSON:',error);$('assetsList').replaceChildren(element('p','empty-results','تعذر قراءة بيانات مكونات الطرق. تأكد من رفع assets/road-components.geojson داخل GitHub.'));$('assetsResultLabel').textContent='بيانات KMZ غير متاحة';}
@@ -616,7 +697,7 @@
   function startOrbit(){
     if(!state.boundaryReady){toast('انتظر ظهور خريطة البريمي.');return;}
     if(reducedMotion){toast('الدوران متوقف في إعداد تقليل الحركة. يمكن تغييره من المساعدة.');return;}
-    stopTour();stopOrbit();stopAssetTour();closeDrawer('browse');closeDrawer('detail');closeDrawer('assets');closeFilters();
+    stopTour();stopOrbit();stopAssetTour();closeDrawer('browse');closeDrawer('detail');closeDrawer('assets');closeDrawer('catalogue');closeFilters();
     // Orbit the currently viewed part of Al Buraimi without demanding other regions' tiles.
     state.map.easeTo({pitch:55,duration:1500});
     state.orbitTimer=setInterval(()=>{
@@ -671,7 +752,7 @@
     const el=e.target;if(el&&(/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)||el.isContentEditable))return;
     if($('helpDialog').open||$('locationDialog').open)return;
     const key=e.key.toLowerCase();
-    if(['q','e','w','s','0','f','h','t'].includes(key)&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    if(['q','e','w','s','0','f','h','t','m','r'].includes(key)&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
       if(key==='q')shiftBearing(-15);
       if(key==='e')shiftBearing(15);
       if(key==='w')shiftPitch(8);
@@ -681,9 +762,10 @@
       if(key==='h')openHelp();
       if(key==='t')toggleTour();
       if(key==='m')toggleDrawer('assets');
+      if(key==='r')toggleDrawer('catalogue');
       e.preventDefault();
     }
-    if(e.key==='Escape'){closeDrawer('browse');closeDrawer('detail');closeDrawer('assets');closeFilters();stopOrbit();stopAssetTour();}
+    if(e.key==='Escape'){closeDrawer('browse');closeDrawer('detail');closeDrawer('assets');closeDrawer('catalogue');closeFilters();stopOrbit();stopAssetTour();}
   });
   // Only direct user gestures interrupt the attraction mode (not programmatic animation events).
   $('mapStage').addEventListener('pointerdown',markUserActivity,{passive:true});
@@ -730,6 +812,7 @@
   $('retryButton').addEventListener('click',()=>location.reload());
   renderList();renderDetail();
   loadAssets();
+  loadCatalogue();
   loadGovernorateBoundary();
   initMap();
   // Cache ONLY same-origin application shell, NEVER third-party dynamic map tiles.
