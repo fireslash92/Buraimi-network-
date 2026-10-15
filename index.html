@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
   <meta name="theme-color" content="#102b33">
   <meta name="description" content="شبكة الطرق بمحافظة البريمي — خريطة OpenStreetMap تفاعلية سريعة — دائرة الطرق بمحافظة البريمي">
   <title>شبكة الطرق بمحافظة البريمي | المعرض التفاعلي ٢٠٢٦</title>
@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
-  <script type="module" src="assets/bootstrap.js?v=2.4"></script>
+  <script type="module" src="assets/bootstrap.js?v=3.0"></script>
 </head>
 <body>
 <div id="appShell" class="app-shell">
@@ -22,11 +22,12 @@
       <div class="brand-words">
         <span class="eyebrow">سلطنة عُمان · وزارة النقل والاتصالات وتقنية المعلومات</span>
         <strong>دائرة الطرق بمحافظة البريمي</strong>
-        <small>منصة شبكة الطرق الجغرافية التفاعلية</small>
+        <small>رحلة بصرية تفاعلية في شبكة الطرق</small>
       </div>
     </div>
     <div class="header-actions">
       <span class="expo-flag"><span class="signal"></span> أكتوبر العمران <b>٢٠٢٦</b></span>
+      <button id="helpButtonHeader" class="icon-btn" title="المساعدة والنفاذ الرقمي" aria-label="تعليمات التحكم والنفاذ الرقمي">؟</button>
       <button id="themeButton" class="icon-btn" title="تبديل المظهر" aria-label="تبديل المظهر">☼</button>
       <button id="fullscreenButton" class="icon-btn" title="ملء الشاشة" aria-label="ملء الشاشة">⛶</button>
     </div>
@@ -47,10 +48,13 @@
           <div class="map-title-block"><span class="section-overline">المشهد الجغرافي الرقمي · أكتوبر العمران ٢٠٢٦</span><h1>شبكة الطرق <em>بمحافظة البريمي</em></h1><p>شبكة الطرق داخل حدود محافظة البريمي فقط · أسماء عربية</p></div>
           <div class="status-pill" id="mapStatus"><span class="status-dot"></span><span id="mapStatusText">جاري الاتصال بالخرائط</span></div>
         </div>
-        <div class="mobile-switcher glass-box" aria-label="لوحات التفاعل">
-          <button id="mobileBrowse" type="button" aria-controls="browsePanel" aria-expanded="false">☰ المواقع</button>
-          <button id="mobileDetail" type="button" aria-controls="detailPanel" aria-expanded="false">◇ التفاصيل</button>
-        </div>
+        <nav class="mobile-switcher glass-box" aria-label="أدوات استكشاف الخريطة">
+          <button id="mobileBrowse" type="button" aria-controls="browsePanel" aria-expanded="false" title="استكشف الولايات والمواقع"><span aria-hidden="true">☰</span> <span>استكشف</span></button>
+          <button id="mobileDetail" type="button" aria-controls="detailPanel" aria-expanded="false" title="تفاصيل الطرق والطبقات"><span aria-hidden="true">◇</span> <span>التفاصيل</span></button>
+          <button id="filterPanelToggle" type="button" aria-controls="roadFiltersPanel" aria-expanded="false" title="اختيار نوع الطرق"><span aria-hidden="true">≋</span> <span>الطرق</span></button>
+          <button id="orbitButton" type="button" aria-pressed="false" title="تشغيل أو إيقاف تدوير المشهد تلقائيًا"><span aria-hidden="true">⟳</span> <span id="orbitLabel">دوران تلقائي</span></button>
+          <button id="tourShortcut" type="button" title="جولة بين ولايات محافظة البريمي"><span aria-hidden="true">▶</span> <span id="tourShortcutLabel">جولة مرئية</span></button>
+        </nav>
 
         <aside class="float-panel browse-panel" id="browsePanel" aria-label="تصفح المواقع على الخريطة">
           <div class="panel-head"><div><span class="micro-label">استكشف المحافظة</span><h2>المواقع والولايات</h2></div><button id="closeBrowse" type="button" class="close-drawer" aria-label="إغلاق قائمة المواقع">×</button></div>
@@ -85,6 +89,18 @@
           <div class="source-credit">مصدر الطرق <strong>© OpenStreetMap</strong> · حدود المحافظة: بيانات GADM عبر oman-data-bank · الارتفاعات: AWS/Mapzen. الحدود مرجعية لأغراض العرض وليست بديلًا عن ملف GIS المعتمد.</div>
         </aside>
 
+        <div class="camera-pad glass-box" role="group" aria-label="تدوير وإمالة الخريطة">
+          <div class="camera-heading"><strong>حرك المشهد</strong><span>٣٦٠°</span></div>
+          <div class="camera-grid">
+            <button id="tiltUp" type="button" class="camera-key up" title="إمالة نحو الأفق" aria-label="رفع زاوية العرض">⌃</button>
+            <button id="rotateLeft" type="button" class="camera-key left" title="تدوير الخريطة لليسار" aria-label="تدوير يسار">↶</button>
+            <button id="cameraNorth" type="button" class="camera-north" title="العودة لاتجاه الشمال" aria-label="العودة لاتجاه الشمال"><span class="compass-needle" id="compassNeedle">◆</span><small>شمال</small></button>
+            <button id="rotateRight" type="button" class="camera-key right" title="تدوير الخريطة لليمين" aria-label="تدوير يمين">↷</button>
+            <button id="tiltDown" type="button" class="camera-key down" title="عرض رأسي من الأعلى" aria-label="خفض زاوية العرض">⌄</button>
+          </div>
+          <label class="pitch-control" for="pitchSlider"><span>زاوية المشهد</span><output id="pitchSliderValue" for="pitchSlider">٠°</output></label>
+          <input id="pitchSlider" type="range" min="0" max="75" value="0" step="1" aria-label="زاوية إمالة الخريطة، من صفر إلى ٧٥ درجة" dir="ltr">
+        </div>
         <div class="map-toolbar glass-box" aria-label="أدوات التحكم في الخريطة">
           <button id="zoomIn" class="tool-btn" type="button" title="تكبير" aria-label="تكبير">+</button>
           <button id="zoomOut" class="tool-btn" type="button" title="تصغير" aria-label="تصغير">−</button>
@@ -95,7 +111,7 @@
         </div>
         <div class="view-info glass-box"><span>الميل: <b id="pitchReadout">٠°</b></span><span>التقريب: <b id="zoomReadout">—</b></span></div>
         <div id="adminHint" class="admin-hint" hidden>انقر على أي موضع بالخريطة لإضافة علامة جغرافية</div>
-        <div class="road-filter-wrap glass-box"><div class="filter-top"><strong>تصنيف الطرق في OpenStreetMap</strong><small id="roadsHint">اضغط على أي طريق للاطلاع على بياناته</small></div>
+        <div class="road-filter-wrap glass-box" id="roadFiltersPanel" hidden><div class="filter-top"><strong>تصنيف الطرق في OpenStreetMap</strong><small id="roadsHint">اضغط على أي طريق للاطلاع على بياناته</small></div>
           <div class="road-filters" id="roadFilters">
             <button type="button" class="route-chip active" data-road="all">جميع الطرق</button>
             <button type="button" class="route-chip" data-road="main">الطرق الرئيسية</button>
@@ -104,11 +120,16 @@
             <button type="button" class="route-chip" data-road="track">المسارات الترابية</button>
           </div>
         </div>
+        <div class="gesture-hint" id="gestureHint" role="note">
+          <button id="dismissHint" type="button" aria-label="إغلاق تلميحات التحكم">×</button>
+          <strong>الخريطة بين يديك</strong>
+          <span>اسحب للتحريك • بإصبعين للتدوير والتقريب والإمالة</span>
+        </div>
         <div class="map-disclaimer">العرض محصور بحدود المحافظة الجغرافية المرجعية. بيانات الطرق من OpenStreetMap وليست سجلًا رسميًا لأصول الوزارة.</div>
       </div>
     </section>
   </main>
-  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٢٫٤ · نشر مباشر دون Actions</span></footer>
+  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٣٫٠ · عرض غامر متعدد الشاشات</span></footer>
 </div>
 <dialog id="locationDialog" class="edit-dialog" aria-labelledby="dialogTitle">
   <form id="locationForm" method="dialog"><div class="dialog-head"><div><span class="micro-label">إدارة المواقع</span><h2 id="dialogTitle">إضافة موقع</h2></div><button id="dialogClose" type="button" aria-label="إغلاق" class="dialog-close">×</button></div>
@@ -119,6 +140,23 @@
     <p class="form-caption">الإحداثيات يجب أن تكون جغرافية فعلية بصيغة WGS84. الملفات القديمة ذات إحداثيات الصورة لن تُعتبر مواقع GPS.</p>
     <div class="dialog-actions"><button type="button" id="dialogCancel" class="outline-btn">إلغاء</button><button type="submit" class="primary-btn">حفظ الموقع</button></div>
   </form>
+</dialog>
+<dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+  <div class="help-head"><div><span class="micro-label">دليل التفاعل والنفاذ الرقمي</span><h2 id="helpTitle">استكشف البريمي بطريقتك</h2></div><button type="button" id="helpClose" aria-label="إغلاق المساعدة">×</button></div>
+  <p>يمكنك استخدام اللمس أو الفأرة أو لوحة المفاتيح للتنقل داخل حدود المحافظة.</p>
+  <div class="gesture-grid">
+    <div><strong>☝️ اللمس والسحب</strong><span>تحريك الخريطة</span></div>
+    <div><strong>🤏 إصبعان</strong><span>التكبير والتصغير والتدوير</span></div>
+    <div><strong>↕ إصبعان للأعلى والأسفل</strong><span>إمالة الكاميرا لرؤية التضاريس</span></div>
+    <div><strong>⌨️ لوحة المفاتيح</strong><span>الأسهم للتحريك · + و − للتكبير · Q / E للتدوير · W / S للإمالة · 0 لإعادة التوجيه</span></div>
+  </div>
+  <fieldset class="access-settings"><legend>تفضيلات سهولة الاستخدام</legend>
+    <label><input id="largeTextToggle" type="checkbox"> نصوص وأزرار أكبر</label>
+    <label><input id="highContrastToggle" type="checkbox"> تباين مرتفع</label>
+    <label><input id="reducedMotionToggle" type="checkbox"> تقليل الحركة والانتقالات</label>
+  </fieldset>
+  <p class="help-note">يمكن إيقاف الدوران التلقائي في أي وقت. تجربة ثلاثية الأبعاد تفاعلية، وليست نموذج تضاريس هندسيًا معتمدًا.</p>
+  <button id="helpDone" type="button" class="primary-btn">ابدأ الاستكشاف</button>
 </dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>

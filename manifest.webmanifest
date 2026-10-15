@@ -1,0 +1,12 @@
+{
+  "name": "شبكة الطرق بمحافظة البريمي — العرض التفاعلي 3D",
+  "short_name": "طرق البريمي",
+  "description": "منصة استكشاف شبكة الطرق لمحافظة البريمي في معرض أكتوبر العمران ٢٠٢٦",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#102b33",
+  "theme_color": "#102b33",
+  "icons": [{"src":"assets/road-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}
