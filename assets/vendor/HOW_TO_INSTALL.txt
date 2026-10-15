@@ -1,0 +1,9 @@
+Optional: local MapLibre 6.13.0 files to avoid CDN dependency.
+Download the matching files from https://cdn.jsdelivr.net/npm/maplibre-gl@6.13.0/dist/ :
+maplibre-gl.mjs
+maplibre-gl-shared.mjs
+maplibre-gl-worker.mjs
+maplibre-gl.css
+Place each directly in THIS folder and upload on GitHub. Include MapLibre BSD-3-Clause license from https://cdn.jsdelivr.net/npm/maplibre-gl@6.13.0/LICENSE.txt .
+GitHub Pages will serve the files directly, no GitHub Actions required.
+Without local files, the app tries public CDNs. Network is still necessary for OpenStreetMap tiles.
