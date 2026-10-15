@@ -9,8 +9,8 @@
   <link rel="icon" href="assets/road-icon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
-  <link rel="stylesheet" href="assets/styles.css">
-  <script type="module" src="assets/bootstrap.js?v=4.0"></script>
+  <link rel="stylesheet" href="assets/styles.css?v=5.0">
+  <script type="module" src="assets/bootstrap.js?v=5.0"></script>
 </head>
 <body>
 <div id="appShell" class="app-shell">
@@ -51,6 +51,7 @@
         <nav class="mobile-switcher glass-box" aria-label="أدوات استكشاف الخريطة">
           <button id="mobileBrowse" type="button" aria-controls="browsePanel" aria-expanded="false" title="استكشف الولايات والمواقع"><span aria-hidden="true">☰</span> <span>استكشف</span></button>
           <button id="mobileAssets" type="button" aria-controls="assetsPanel" aria-expanded="false" title="استكشف منشآت الطرق الميدانية"><span aria-hidden="true">◈</span> <span>المكونات <b id="assetsBadge">٢٧</b></span></button>
+          <button id="mobileCatalogue" type="button" aria-controls="cataloguePanel" aria-expanded="false" title="أسماء وأرقام الطرق من المخطط الهندسي"><span aria-hidden="true">≡</span> <span>دليل الطرق <b>٢٢</b></span></button>
           <button id="mobileDetail" type="button" aria-controls="detailPanel" aria-expanded="false" title="تفاصيل الطرق والطبقات"><span aria-hidden="true">◇</span> <span>التفاصيل</span></button>
           <button id="filterPanelToggle" type="button" aria-controls="roadFiltersPanel" aria-expanded="false" title="اختيار نوع الطرق"><span aria-hidden="true">≋</span> <span>الطرق</span></button>
           <button id="orbitButton" type="button" aria-pressed="false" title="تشغيل أو إيقاف تدوير المشهد تلقائيًا"><span aria-hidden="true">⟳</span> <span id="orbitLabel">دوران تلقائي</span></button>
@@ -83,6 +84,24 @@
           <div class="asset-bottom"><button type="button" id="assetsTour" class="primary-btn">▶ جولة بين المكونات</button><button type="button" id="assetsResetFilters" class="outline-btn">إلغاء التصفية</button></div>
           <p class="asset-boundary-note" id="assetBoundaryNote" role="status" hidden></p>
           <p class="asset-disclaimer">العلامات تمثل مواقع منشآت نقطية واردة في الملف، وليس مسارات الطرق أو مجسماتها الهندسية. الوحدات لم تُذكر في المصدر.</p>
+        </aside>
+
+        <aside class="float-panel catalogue-panel" id="cataloguePanel" aria-label="دليل الطرق حسب المخطط الهندسي">
+          <div class="panel-head"><div><span class="micro-label">التصنيف والأسماء من المخطط الهندسي</span><h2>دليل طرق المحافظة <small id="catalogueTotal">٢٢</small></h2></div><button id="closeCatalogue" type="button" class="close-drawer" aria-label="إغلاق دليل الطرق">×</button></div>
+          <div class="catalogue-stats" id="catalogueStats" aria-label="إحصاءات الطرق المرجعية"></div>
+          <label class="search-box" for="catalogueSearch"><span aria-hidden="true">⌕</span><input id="catalogueSearch" type="search" placeholder="ابحث برقم الطريق N6 أو باسمه..." autocomplete="off" aria-label="البحث باسم أو رقم الطريق"></label>
+          <div class="catalogue-filters" id="catalogueFilters" role="group" aria-label="التصفية حسب تصنيف الطرق">
+            <button type="button" class="active" data-catalogue-category="all" aria-pressed="true">الكل</button>
+            <button type="button" data-catalogue-category="وطني" aria-pressed="false">وطني</button>
+            <button type="button" data-catalogue-category="شرياني" aria-pressed="false">شرياني</button>
+            <button type="button" data-catalogue-category="ثانوي" aria-pressed="false">ثانوي</button>
+            <button type="button" data-catalogue-category="موزع" aria-pressed="false">موزع</button>
+            <button type="button" data-catalogue-category="محلي" aria-pressed="false">محلي</button>
+          </div>
+          <div class="list-meta"><span>الطرق المطابقة</span><strong id="catalogueCount" aria-live="polite">٢٢</strong></div>
+          <div id="catalogueList" class="catalogue-list" aria-label="الطرق المصنفة"></div>
+          <section id="catalogueSelected" class="catalogue-selection" aria-label="معلومات الطريق المحدد" aria-live="polite" hidden></section>
+          <p class="catalogue-disclaimer">التصنيف والمسميات من المخطط الهندسي المرفق. المسارات المرئية بالخلفية من OpenStreetMap ولا تُعد رسمًا جغرافيًا معتمدًا لطرق هذا الدليل. لا تُعرض الصورة الأصلية ذات قيد الاستخدام الداخلي.</p>
         </aside>
 
         <aside class="float-panel detail-panel" id="detailPanel" aria-label="معلومات الموقع والطريق">
@@ -147,11 +166,11 @@
           <strong>الخريطة بين يديك</strong>
           <span>اسحب للتحريك • بإصبعين للتدوير والتقريب والإمالة</span>
         </div>
-        <div class="map-disclaimer">الطرق الأساسية: OpenStreetMap · المنشآت النقطية: ملف مكونات الطرق المرفق (KMZ) · الحدود مرجعية وليست وثيقة مساحية معتمدة.</div>
+        <div class="map-disclaimer">الطرق الأساسية: OpenStreetMap · أسماء وتصنيف ٢٢ طريقًا: المخطط الهندسي المصور · منشآت هندسية: KMZ · حدود المحافظة: GeoJSON؛ تُستعمل البيانات لأغراض العرض التعريفي ولا تؤكد مسارات هندسية دقيقة.</div>
       </div>
     </section>
   </main>
-  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٤٫٠ · أطلس مكونات الطرق</span></footer>
+  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٥٫٠ · دليل الطرق ومكوناتها</span></footer>
 </div>
 <dialog id="locationDialog" class="edit-dialog" aria-labelledby="dialogTitle">
   <form id="locationForm" method="dialog"><div class="dialog-head"><div><span class="micro-label">إدارة المواقع</span><h2 id="dialogTitle">إضافة موقع</h2></div><button id="dialogClose" type="button" aria-label="إغلاق" class="dialog-close">×</button></div>

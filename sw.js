@@ -1,6 +1,6 @@
 /* App shell cache only; external live OpenStreetMap/terrain requests must stay network-based. */
-const CACHE = 'buraimi-roads-osm-3d-v4.0';
-const FILES = ['./index.html', './assets/styles.css', './assets/app.js', './assets/bootstrap.js', './assets/road-icon.svg', './assets/road-components.geojson', './manifest.webmanifest'];
+const CACHE = 'buraimi-roads-osm-3d-v5.0';
+const FILES = ['./index.html', './assets/styles.css', './assets/app.js', './assets/bootstrap.js', './assets/road-icon.svg', './assets/road-components.geojson', './assets/road-catalog.json', './manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).catch(() => {}));
   self.skipWaiting();
