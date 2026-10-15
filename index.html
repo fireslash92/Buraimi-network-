@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
-  <script type="module" src="assets/bootstrap.js?v=3.0"></script>
+  <script type="module" src="assets/bootstrap.js?v=4.0"></script>
 </head>
 <body>
 <div id="appShell" class="app-shell">
@@ -22,7 +22,7 @@
       <div class="brand-words">
         <span class="eyebrow">سلطنة عُمان · وزارة النقل والاتصالات وتقنية المعلومات</span>
         <strong>دائرة الطرق بمحافظة البريمي</strong>
-        <small>رحلة بصرية تفاعلية في شبكة الطرق</small>
+        <small>رحلة بصرية تفاعلية في شبكة الطرق ومكوناتها</small>
       </div>
     </div>
     <div class="header-actions">
@@ -50,6 +50,7 @@
         </div>
         <nav class="mobile-switcher glass-box" aria-label="أدوات استكشاف الخريطة">
           <button id="mobileBrowse" type="button" aria-controls="browsePanel" aria-expanded="false" title="استكشف الولايات والمواقع"><span aria-hidden="true">☰</span> <span>استكشف</span></button>
+          <button id="mobileAssets" type="button" aria-controls="assetsPanel" aria-expanded="false" title="استكشف منشآت الطرق الميدانية"><span aria-hidden="true">◈</span> <span>المكونات <b id="assetsBadge">٢٧</b></span></button>
           <button id="mobileDetail" type="button" aria-controls="detailPanel" aria-expanded="false" title="تفاصيل الطرق والطبقات"><span aria-hidden="true">◇</span> <span>التفاصيل</span></button>
           <button id="filterPanelToggle" type="button" aria-controls="roadFiltersPanel" aria-expanded="false" title="اختيار نوع الطرق"><span aria-hidden="true">≋</span> <span>الطرق</span></button>
           <button id="orbitButton" type="button" aria-pressed="false" title="تشغيل أو إيقاف تدوير المشهد تلقائيًا"><span aria-hidden="true">⟳</span> <span id="orbitLabel">دوران تلقائي</span></button>
@@ -65,6 +66,25 @@
           <div class="browse-bottom"><button type="button" id="tourButton" class="primary-btn"><span id="tourIcon">▶</span> <span id="tourText">بدء جولة تفاعلية</span></button><p>اختر موقعًا للانتقال إليه مباشرة على الخريطة.</p></div>
         </aside>
 
+        <aside class="float-panel assets-panel" id="assetsPanel" aria-label="مكونات الطرق بمحافظة البريمي">
+          <div class="panel-head"><div><span class="micro-label">بيانات ميدانية من ملف KMZ</span><h2>مكونات الطرق</h2></div><button id="closeAssets" type="button" class="close-drawer" aria-label="إغلاق مكونات الطرق">×</button></div>
+          <div class="assets-kpis" id="assetsKpis" aria-label="إحصائيات المنشآت"><div><strong>٢٧</strong><span>منشأة</span></div><div><strong>٧</strong><span>طرق</span></div><div><strong>٣</strong><span>ولايات</span></div></div>
+          <label class="search-box" for="assetsSearch"><span aria-hidden="true">⌕</span><input id="assetsSearch" type="search" placeholder="بحث باسم الطريق أو رمزه أو المنشأة..." autocomplete="off"></label>
+          <div class="asset-filter-chips" id="assetsCategories" aria-label="تصفية حسب نوع المنشأة">
+            <button type="button" data-asset-category="all" class="active" aria-pressed="true">الكل <small>٢٧</small></button>
+            <button type="button" data-asset-category="جسر وادي" aria-pressed="false">جسور الأودية <small>١٢</small></button>
+            <button type="button" data-asset-category="ممر سفلي" aria-pressed="false">ممرات سفلية <small>٨</small></button>
+            <button type="button" data-asset-category="ممر علوي" aria-pressed="false">ممرات علوية <small>٦</small></button>
+            <button type="button" data-asset-category="نفق مشاه" aria-pressed="false">نفق مشاة <small>١</small></button>
+          </div>
+          <div class="asset-select-row"><label>الطريق<select id="assetsRoad"><option value="all">جميع الطرق</option></select></label><label>الولاية<select id="assetsWilaya"><option value="all">جميع الولايات</option></select></label></div>
+          <div class="list-meta"><span id="assetsResultLabel">مواقع المنشآت</span><strong id="assetsResultCount">٢٧</strong></div>
+          <div class="asset-list" id="assetsList" role="list" aria-label="قائمة مكونات الطرق"></div>
+          <div class="asset-bottom"><button type="button" id="assetsTour" class="primary-btn">▶ جولة بين المكونات</button><button type="button" id="assetsResetFilters" class="outline-btn">إلغاء التصفية</button></div>
+          <p class="asset-boundary-note" id="assetBoundaryNote" role="status" hidden></p>
+          <p class="asset-disclaimer">العلامات تمثل مواقع منشآت نقطية واردة في الملف، وليس مسارات الطرق أو مجسماتها الهندسية. الوحدات لم تُذكر في المصدر.</p>
+        </aside>
+
         <aside class="float-panel detail-panel" id="detailPanel" aria-label="معلومات الموقع والطريق">
           <div class="panel-head"><div><span class="micro-label">بيانات الخريطة الحية</span><h2>تفاصيل الاستكشاف</h2></div><button id="closeDetail" type="button" class="close-drawer" aria-label="إغلاق التفاصيل">×</button></div>
           <div class="selected-card" id="selectedCard">
@@ -72,6 +92,7 @@
             <span class="selected-kicker" id="detailType">ولاية</span>
             <h3 id="detailTitle">ولاية البريمي</h3>
             <p id="detailDesc">اختر موقعًا من القائمة أو اضغط على طريق مرسوم بالخريطة.</p>
+            <div id="assetDetails" class="asset-detail-data" hidden aria-label="البيانات الفنية للمنشأة"></div>
             <div class="detail-meta"><span id="coordinateLabel">إحداثيات الموقع</span><strong id="detailCoordinate">—</strong></div>
             <button id="focusButton" class="outline-btn" type="button">الانتقال إلى الموقع ↗</button>
             <div class="edit-actions" id="editActions" hidden><button type="button" id="editSelectedButton" class="quiet-button">تعديل الموقع</button><button type="button" id="deleteSelectedButton" class="quiet-button danger">حذف الموقع</button></div>
@@ -80,13 +101,14 @@
             <div class="block-title"><h3>الطبقات التفاعلية</h3><small>التضاريس تُحمّل عند تفعيلها فقط</small></div>
             <label class="toggle-row"><span><i class="legend-dot green"></i> علامات الولايات</span><input id="wilayaToggle" type="checkbox" checked><b></b></label>
             <label class="toggle-row"><span><i class="legend-dot gold"></i> علامات المواقع</span><input id="siteToggle" type="checkbox" checked><b></b></label>
+            <label class="toggle-row"><span><i class="legend-dot assets"></i> مكونات الطرق الميدانية (KMZ)</span><input id="assetsToggle" type="checkbox" checked><b></b></label>
             <label class="toggle-row"><span><i class="legend-line"></i> تمييز شبكة الطرق</span><input id="roadToggle" type="checkbox" checked><b></b></label>
             <label class="toggle-row"><span>▥ المباني ثلاثية الأبعاد</span><input id="buildingToggle" type="checkbox" checked><b></b></label>
             <label class="toggle-row"><span>▲ التضاريس ثلاثية الأبعاد</span><input id="terrainToggle" type="checkbox"><b></b></label>
           </div>
           <div class="manage-controls" id="manageControls"><button id="editModeButton" type="button" class="quiet-button">⚙ إدارة المواقع</button><button id="exportButton" type="button" class="quiet-button">↓ تصدير JSON</button><button id="importButton" type="button" class="quiet-button">↑ استيراد JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
           <p class="manage-hint" id="manageHint">وضع الإدارة محلي ولا يمثل نظامًا لحفظ بيانات الوزارة.</p>
-          <div class="source-credit">مصدر الطرق <strong>© OpenStreetMap</strong> · حدود المحافظة: بيانات GADM عبر oman-data-bank · الارتفاعات: AWS/Mapzen. الحدود مرجعية لأغراض العرض وليست بديلًا عن ملف GIS المعتمد.</div>
+          <div class="source-credit">بيانات الطرق المفتوحة <strong>© OpenStreetMap</strong> · منشآت الطرق: ملف KMZ المرفق · حدود المحافظة: ملف GeoJSON محلي أو مصدر حدود مرجعي · الارتفاعات: AWS/Mapzen. الحدود مرجعية لأغراض العرض وليست بديلًا عن ملف GIS المعتمد.</div>
         </aside>
 
         <div class="camera-pad glass-box" role="group" aria-label="تدوير وإمالة الخريطة">
@@ -125,11 +147,11 @@
           <strong>الخريطة بين يديك</strong>
           <span>اسحب للتحريك • بإصبعين للتدوير والتقريب والإمالة</span>
         </div>
-        <div class="map-disclaimer">العرض محصور بحدود المحافظة الجغرافية المرجعية. بيانات الطرق من OpenStreetMap وليست سجلًا رسميًا لأصول الوزارة.</div>
+        <div class="map-disclaimer">الطرق الأساسية: OpenStreetMap · المنشآت النقطية: ملف مكونات الطرق المرفق (KMZ) · الحدود مرجعية وليست وثيقة مساحية معتمدة.</div>
       </div>
     </section>
   </main>
-  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٣٫٠ · عرض غامر متعدد الشاشات</span></footer>
+  <footer class="site-footer"><span>من تصميم دائرة الطرق بمحافظة البريمي</span><span class="footer-divider">•</span><strong>جميع الحقوق محفوظة لدائرة الطرق بمحافظة البريمي ٢٠٢٦م</strong><span class="footer-version">إصدار ٤٫٠ · أطلس مكونات الطرق</span></footer>
 </div>
 <dialog id="locationDialog" class="edit-dialog" aria-labelledby="dialogTitle">
   <form id="locationForm" method="dialog"><div class="dialog-head"><div><span class="micro-label">إدارة المواقع</span><h2 id="dialogTitle">إضافة موقع</h2></div><button id="dialogClose" type="button" aria-label="إغلاق" class="dialog-close">×</button></div>
